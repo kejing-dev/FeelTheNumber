@@ -147,7 +147,7 @@ private fun ColumnScope.GuessPage(state: FeelUiState, onEvent: (FeelEvent) -> Un
     Spacer(modifier = Modifier.height(4.dp))
     // logarithmic slider, no ticks, no numbers: a small ball at the left end, a big one at the right
     Row(modifier = Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Icon(painter = painterResource(R.drawable.ic_ball), contentDescription = rs(R.string.slider_small), modifier = Modifier.size(12.dp), tint = PicoTheme.colorScheme.labelSecondary)
+        Icon(painter = painterResource(R.drawable.ic_ball), contentDescription = rs(R.string.slider_small), modifier = Modifier.size(12.dp), tint = PicoTheme.colorScheme.labelPrimary)
         Box(modifier = Modifier.weight(1f).probe("slider")) {
             Slider(
                 Placement.sliderOf(state.guess.size),
@@ -159,7 +159,7 @@ private fun ColumnScope.GuessPage(state: FeelUiState, onEvent: (FeelEvent) -> Un
                 colors = SliderDefaults.sliderColors(trackColor = PicoTheme.colorScheme.fillPrimary, progressColor = PicoTheme.colorScheme.interaction, progressHighColor = PicoTheme.colorScheme.interaction),
             )
         }
-        Icon(painter = painterResource(R.drawable.ic_ball), contentDescription = rs(R.string.slider_big), modifier = Modifier.size(28.dp), tint = PicoTheme.colorScheme.labelSecondary)
+        Icon(painter = painterResource(R.drawable.ic_ball), contentDescription = rs(R.string.slider_big), modifier = Modifier.size(28.dp), tint = PicoTheme.colorScheme.labelPrimary)
     }
     // hint line (+ [Room] in the virtual room, [Bring back] while guessing)
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -174,7 +174,7 @@ private fun ColumnScope.GuessPage(state: FeelUiState, onEvent: (FeelEvent) -> Un
         }
     }
     Spacer(modifier = Modifier.weight(1f))
-    Text(text = rs(R.string.joystick_hint), style = FeelType.label, color = PicoTheme.colorScheme.labelSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+    Text(text = rs(R.string.joystick_hint), style = FeelType.label, color = PicoTheme.colorScheme.labelPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
     WordButton(name = "reveal", text = rs(R.string.action_reveal), onClick = { onEvent(FeelEvent.Reveal) }, modifier = Modifier.fillMaxWidth(), primary = true, enabled = ready, minWidth = 200.dp)
 }
 
@@ -232,7 +232,7 @@ private fun ColumnScope.ResultPage(state: FeelUiState, onEvent: (FeelEvent) -> U
     Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
         Swatch(FeelColors.TrueTeal, 14.dp, Modifier.padding(bottom = 10.dp))
         Text(text = sizeText(q.shape, r.trueSize), style = FeelType.big, color = PicoTheme.colorScheme.labelPrimary, maxLines = 1, modifier = Modifier.probe("result_true"))
-        Text(text = q.title(state.en), style = FeelType.body, color = PicoTheme.colorScheme.labelSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(bottom = 4.dp))
+        Text(text = q.title(state.en), style = FeelType.body, color = PicoTheme.colorScheme.labelPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(bottom = 4.dp))
     }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Swatch(FeelColors.GuessBlue, 10.dp, dashed = true)
@@ -244,11 +244,11 @@ private fun ColumnScope.ResultPage(state: FeelUiState, onEvent: (FeelEvent) -> U
         Text(
             text = rs(when (r.stars) { 3 -> R.string.stars_3; 2 -> R.string.stars_2; 1 -> R.string.stars_1; else -> R.string.stars_0 }),
             style = FeelType.label,
-            color = PicoTheme.colorScheme.labelSecondary,
+            color = PicoTheme.colorScheme.labelPrimary,
             maxLines = 1,
         )
     }
-    if (Scoring.showsLesson(r.ratio)) Text(text = rs(R.string.lesson, 0), style = FeelType.label, color = PicoTheme.colorScheme.labelSecondary, maxLines = 1)
+    if (Scoring.showsLesson(r.ratio)) Text(text = rs(R.string.lesson, 0), style = FeelType.label, color = PicoTheme.colorScheme.labelPrimary, maxLines = 1)
     SideView(state, Modifier.fillMaxWidth().height(132.dp))
     val pct = (r.visible * 100f).toInt().coerceIn(0, 100)
     if (r.inside || r.cut) {
@@ -259,11 +259,11 @@ private fun ColumnScope.ResultPage(state: FeelUiState, onEvent: (FeelEvent) -> U
         }
     }
     Text(text = q.fact(state.en), style = FeelType.body, color = PicoTheme.colorScheme.labelPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
-    Text(text = rs(R.string.source_line, q.source(state.en)), style = FeelType.small, color = PicoTheme.colorScheme.labelSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    Text(text = rs(R.string.source_line, q.source(state.en)), style = FeelType.small, color = PicoTheme.colorScheme.labelPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
     val setQs = QuestionBank.inSet(q.set)
     val three = setQs.count { (state.best[it.id]?.stars ?: 0) == 3 }
     val tried = setQs.count { state.best.containsKey(it.id) }
-    Text(text = rs(R.string.progress_line, tried, setQs.size, three), style = FeelType.label, color = PicoTheme.colorScheme.labelSecondary, maxLines = 1)
+    Text(text = rs(R.string.progress_line, tried, setQs.size, three), style = FeelType.label, color = PicoTheme.colorScheme.labelPrimary, maxLines = 1)
     Spacer(modifier = Modifier.weight(1f))
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         WordButton(name = "to_front", text = rs(R.string.action_to_front), onClick = { onEvent(FeelEvent.MoveToFront) }, modifier = Modifier.weight(1f), enabled = done, minWidth = 0.dp, iconRes = R.drawable.ic_bring)
@@ -415,7 +415,7 @@ private fun ColumnScope.DeckPage(state: FeelUiState, onEvent: (FeelEvent) -> Uni
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(text = q.title(state.en), style = FeelType.title, color = PicoTheme.colorScheme.labelPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-            if (best == null) Text(text = rs(R.string.deck_not_tried), style = FeelType.title, color = PicoTheme.colorScheme.labelSecondary) else Stars(best.stars)
+            if (best == null) Text(text = rs(R.string.deck_not_tried), style = FeelType.title, color = PicoTheme.colorScheme.labelPrimary) else Stars(best.stars)
         }
     }
     Spacer(modifier = Modifier.weight(1f))
@@ -424,7 +424,7 @@ private fun ColumnScope.DeckPage(state: FeelUiState, onEvent: (FeelEvent) -> Uni
     Text(
         text = rs(R.string.deck_done, done) + (err?.let { "  ·  " + rs(R.string.deck_error, it) } ?: ""),
         style = FeelType.label,
-        color = PicoTheme.colorScheme.labelSecondary,
+        color = PicoTheme.colorScheme.labelPrimary,
         maxLines = 1,
         modifier = Modifier.fillMaxWidth(),
         textAlign = TextAlign.Center,
@@ -442,12 +442,12 @@ private fun ColumnScope.AboutPage(state: FeelUiState, onEvent: (FeelEvent) -> Un
         leading = { Key(name = "about_back", iconRes = R.drawable.ic_back, description = rs(R.string.action_back), width = 48.dp) { onEvent(FeelEvent.BackToDeck) } },
     )
     Text(text = rs(R.string.about_body, 0), style = FeelType.body, color = PicoTheme.colorScheme.labelPrimary, maxLines = 7)
-    Text(text = rs(R.string.about_credit), style = FeelType.body, color = PicoTheme.colorScheme.labelSecondary, maxLines = 3)
+    Text(text = rs(R.string.about_credit), style = FeelType.body, color = PicoTheme.colorScheme.labelPrimary, maxLines = 3)
     Text(text = rs(R.string.about_sources), style = FeelType.title, color = PicoTheme.colorScheme.labelPrimary, modifier = Modifier.padding(top = 4.dp))
     // the sources of the set open in the deck: five at a time keeps the page airy (taste B19)
-    Text(text = QuestionBank.set(state.deckSet).name(state.en), style = FeelType.label, color = PicoTheme.colorScheme.labelSecondary)
+    Text(text = QuestionBank.set(state.deckSet).name(state.en), style = FeelType.label, color = PicoTheme.colorScheme.labelPrimary)
     QuestionBank.inSet(state.deckSet).forEach { q ->
-        Text(text = "${q.title(state.en)} — ${q.source(state.en).substringBefore("；").substringBefore("; ")}", style = FeelType.body, color = PicoTheme.colorScheme.labelSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(text = "${q.title(state.en)} — ${q.source(state.en).substringBefore("；").substringBefore("; ")}", style = FeelType.body, color = PicoTheme.colorScheme.labelPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -462,7 +462,7 @@ private fun ColumnScope.RoomPage(state: FeelUiState, onEvent: (FeelEvent) -> Uni
         title = rs(R.string.room_title),
         leading = { Key(name = "room_back", iconRes = R.drawable.ic_back, description = rs(R.string.action_back), width = 48.dp) { onEvent(FeelEvent.BackToDeck) } },
     )
-    Text(text = rs(if (state.roomSource == RoomSource.SCAN) R.string.room_from_scan else R.string.room_from_virtual), style = FeelType.body, color = PicoTheme.colorScheme.labelSecondary)
+    Text(text = rs(if (state.roomSource == RoomSource.SCAN) R.string.room_from_scan else R.string.room_from_virtual), style = FeelType.body, color = PicoTheme.colorScheme.labelPrimary)
     if (room != null) {
         val step = RoomBox.STEP_M
         RoomStepper("room_l", rs(R.string.room_length, fmt1(room.length))) { d -> onEvent(FeelEvent.RoomResize(d * step, 0f, 0f)) }
