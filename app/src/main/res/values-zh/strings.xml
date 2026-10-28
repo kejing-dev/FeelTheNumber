@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">量感</string>
+
+    <string name="hint_s01">环顾一下房间，正在找地板…（最多 5 秒，扫不到就用虚拟房间）</string>
+    <string name="hint_s02">没扫到房间，先用虚拟房间（%1$s）· 点「房间」调尺寸</string>
+    <string name="hint_first">先猜：1 公斤二氧化碳有多大？捏住球顶的把手往上拉</string>
+    <string name="hint_s03">捏住顶上的把手往上拉，拉到你觉得的大小，再点「揭晓」</string>
+    <string name="hint_s04">点一下地板，把它放到那里</string>
+    <string name="hint_s05">松手就定下来</string>
+    <string name="hint_s06">拖到墙边会自动贴上去</string>
+    <string name="hint_s07">真实大小来了…</string>
+    <string name="hint_s08">猜得怎么样？点「下一题」继续</string>
+    <string name="hint_s09">它比你的房间还大：墙外还有一大截</string>
+    <string name="hint_s10">你现在站在它里面</string>
+    <string name="hint_s11">选一道题</string>
+    <string name="hint_s14">调长宽高，或拖动地板、摇杆左右转动，让房间框对齐真墙</string>
+    <string name="note_scanned">已用扫描到的房间</string>
+    <string name="note_no_ceiling">没识别到天花板：顶部不截断</string>
+    <string name="joystick_hint">摇杆左右转动 · 上下变大变小</string>
+
+    <string name="action_reveal">揭晓</string>
+    <string name="action_again">再猜一次</string>
+    <string name="action_next">下一题 →</string>
+    <string name="action_next_set">下一组 →</string>
+    <string name="action_to_front">移到面前</string>
+    <string name="action_hide">隐藏</string>
+    <string name="action_show">显示</string>
+    <string name="action_wrap">包住我</string>
+    <string name="action_unwrap">移出来</string>
+    <string name="action_back_in_front">回到面前</string>
+    <string name="action_room">房间</string>
+    <string name="action_about">关于</string>
+    <string name="action_deck">题库</string>
+    <string name="action_close">关闭</string>
+    <string name="action_back">返回</string>
+    <string name="action_mute">关闭声音</string>
+    <string name="action_unmute">打开声音</string>
+    <string name="slider_small">更小</string>
+    <string name="slider_big">更大</string>
+
+    <string name="size_diameter">直径 %1$s m</string>
+    <string name="size_edge">边长 %1$s m</string>
+    <string name="you_guessed">你猜 %1$s</string>
+    <string name="verdict_times">大了，是真实的 %1$s 倍</string>
+    <string name="verdict_plus">大了 +%1$d%%</string>
+    <string name="verdict_minus">小了 −%1$d%%</string>
+    <string name="verdict_fraction">小了，只有真实的 1/%1$s</string>
+    <string name="stars_3">很准</string>
+    <string name="stars_2">不错</string>
+    <string name="stars_1">有点远</string>
+    <string name="stars_0">差得远</string>
+    <string name="lesson">直径差 26%%，体积就差一倍</string>
+    <string name="cut_line">装不下：屋里只看得到 %1$d%%</string>
+    <string name="inside_line">你站在它里面 · 屋里只看得到 %1$d%%</string>
+    <string name="progress_line">本组 %1$d/%2$d · ★★★ %3$d</string>
+    <string name="source_line">来源：%1$s</string>
+    <string name="side_you">你</string>
+    <string name="tag_cut">被房间切开</string>
+    <string name="tag_volume">%1$s · %2$s m³</string>
+
+    <string name="deck_title">题库</string>
+    <string name="deck_done">已完成 %1$d/20</string>
+    <string name="deck_error">平均误差 %1$d%%</string>
+    <string name="deck_not_tried">—</string>
+
+    <string name="about_title">数据口径</string>
+    <string name="about_body">气体按 15 °C、1 个大气压计算（与参照作品同口径），所以 1 公斤二氧化碳是 0.53 m³。每道题只有一个体积真值，球或立方体的大小由它反算。误差算的是体积，不是直径：直径大 26%%，体积就是两倍。</string>
+    <string name="about_credit">灵感：Real World Visuals，他们把二氧化碳排放画成了真实大小的蓝色气泡。</string>
+    <string name="about_sources">来源</string>
+
+    <string name="room_title">房间尺寸</string>
+    <string name="room_from_scan">来源：扫描到的房间</string>
+    <string name="room_from_virtual">来源：虚拟房间</string>
+    <string name="room_length">长 %1$s m</string>
+    <string name="room_width">宽 %1$s m</string>
+    <string name="room_height">高 %1$s m</string>
+    <string name="room_align">对齐到面前</string>
+    <string name="room_use_scan">用扫描到的房间</string>
+    <string name="room_shorter">减小</string>
+    <string name="room_longer">增大</string>
+</resources>
