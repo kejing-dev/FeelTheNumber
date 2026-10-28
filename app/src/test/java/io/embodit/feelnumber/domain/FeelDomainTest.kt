@@ -143,6 +143,9 @@ class FeelDomainTest {
         assertEquals(2f / 3f, Clip.visibleFraction(room, c), 0.02f)
         assertTrue(Clip.isCut(room, c))
         assertFalse(Clip.isCut(room, Body(Shape.CUBE, Vec3(0f, 0.5f, 0f), 1f)))
+        // QA round 1: a ball snapped against the front wall only touches it (float error included) -> not cut
+        assertFalse(Clip.isCut(room, Body(Shape.SPHERE, Vec3(0f, 0.5f, -1.5f - 0.0004f), 1f)))
+        assertEquals(1f, Clip.visibleFraction(room, Body(Shape.SPHERE, Vec3(0f, 0.5f, -1.5f), 1f)), 1e-6f)
     }
 
     @Test

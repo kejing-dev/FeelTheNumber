@@ -134,9 +134,9 @@ data class FeelUiState(
             return if (en) "$base+S13" else base
         }
 
-    /** The page the card shows on its front: the guess page or the result page. */
+    /** The card turns to the result page once the growth has ended (S08 - S10); during S07 the guess page stays, greyed. */
     val showsResult: Boolean
-        get() = phase == Phase.RESULT || phase == Phase.REVEALING
+        get() = phase == Phase.RESULT
 }
 
 /** Everything that changes the model: panel controls, scene reports, debug hooks. */

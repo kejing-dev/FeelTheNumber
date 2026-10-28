@@ -62,9 +62,11 @@ class MeshData(val positions: List<Vec3>, val normals: List<Vec3>, val indices: 
  * itself is drawn analytically as a ring on each face that the body crosses.
  */
 object Clip {
-    /** The body pokes out of the room by more than 1 mm somewhere (S09). */
-    fun isCut(room: RoomBox, b: Body): Boolean {
-        val eps = 0.001f
+    /**
+     * The body pokes out of the room by more than [eps] somewhere (S09). 1 cm, not 1 mm: a body snapped
+     * or pushed against a wall only touches it and must not read "cut" (QA round 1).
+     */
+    fun isCut(room: RoomBox, b: Body, eps: Float = 0.01f): Boolean {
         return when (b.shape) {
             Shape.SPHERE -> {
                 val l = room.toLocal(b.center)

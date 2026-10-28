@@ -442,8 +442,10 @@ class FeelViewModel(private val repo: FeelRepository) : ViewModel() {
     private fun withCut(r: Reveal, s: FeelUiState): Reveal {
         val room = s.room ?: return r
         val body = Body(s.question.shape, Placement.center(r.spot, r.trueSize), r.trueSize, r.yawDeg)
-        val cut = Clip.isCut(room, body)
-        return r.copy(cut = cut, visible = if (cut) Clip.visibleFraction(room, body) else 1f)
+        val visible = if (Clip.isCut(room, body)) Clip.visibleFraction(room, body) else 1f
+        // "cut" only when something is really hidden (the sampled share rounds to under 100 %)
+        val cut = visible < 0.995f
+        return r.copy(cut = cut, visible = if (cut) visible else 1f)
     }
 
     private fun movePair(s: FeelUiState, r: Reveal, to: Vec3, unwrap: Boolean) {
