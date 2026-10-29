@@ -15,6 +15,7 @@ import io.embodit.feelnumber.domain.model.QuestionBank
 import io.embodit.feelnumber.domain.model.RoomBox
 import io.embodit.feelnumber.domain.model.RoomSource
 import io.embodit.feelnumber.domain.model.Scoring
+import io.embodit.feelnumber.domain.model.Shape
 import io.embodit.feelnumber.domain.model.Vec3
 import io.embodit.feelnumber.platform.FeelGraph
 import io.embodit.feelnumber.platform.FeelLog
@@ -338,10 +339,33 @@ class FeelViewModel(private val repo: FeelRepository) : ViewModel() {
         return Placement.actualSpot(user, head, s.question.shape, g.size, s.room)
     }
 
-    /** The guess with its actual spot and the tray above it. */
+    /** The guess with its actual spot and the tray above it (pushed out of the view cone to the card, D20). */
     private fun placed(g: Guess, s: FeelUiState): Guess {
-        val spot = actual(g, s)
+        val spot = actual(g, s)?.let { clearOfCard(it, s.question.shape, g.size, onTray = !Placement.onFloor(g.size)) }
         return g.copy(spot = spot, tray = spot?.let { Placement.trayAt(it) })
+    }
+
+    /**
+     * QA round 3 (q3-1): the clearance push could move a body straight into the line of sight to the question card
+     * (a marker put down between the viewer and the card). The spot is moved further out along viewer -> spot, 10 cm at a
+     * time, until the body (on the floor, or on the tray above the spot) is out of the view cone (taste D20).
+     */
+    private fun clearOfCard(spot: Vec3, shape: Shape, size: Float, onTray: Boolean): Vec3 {
+        val card = cardCenter ?: return spot
+        val flat = Vec3(spot.x - head.x, 0f, spot.z - head.z)
+        if (flat.length < 0.05f) return spot
+        val dir = flat.normalized()
+        val r = if (shape == Shape.SPHERE) size / 2f else size * 0.866f
+        var at = spot
+        for (i in 0 until 80) {
+            val base = if (onTray) Placement.trayAt(at) else at
+            if (!Placement.blocksPanel(head, card, CARD_HALF_DIAG_M, Placement.center(base, size), r)) {
+                if (i > 0) FeelLog.i("CONE push spot=${FeelLog.pos(spot)} -> ${FeelLog.pos(at)} steps=$i")
+                return at
+            }
+            at = at + dir * 0.1f
+        }
+        return at
     }
 
     /**
@@ -373,8 +397,8 @@ class FeelViewModel(private val repo: FeelRepository) : ViewModel() {
             Phase.RESULT -> {
                 val r = s.reveal ?: return
                 val to =
-                    if (r.onTray) Placement.trayAt(Placement.actualSpot(anchor, head, s.question.shape, r.trueSize, room))
-                    else Placement.revealSpot(anchor, head, s.question.shape, r.trueSize, room)
+                    if (r.onTray) Placement.trayAt(clearOfCard(Placement.actualSpot(anchor, head, s.question.shape, r.trueSize, room), s.question.shape, maxOf(r.trueSize, r.guessSize), onTray = true))
+                    else clearOfCard(Placement.revealSpot(anchor, head, s.question.shape, r.trueSize, room), s.question.shape, r.trueSize, onTray = false)
                 movePair(s, r, to, unwrap = true, anchor = anchor)
                 // the next question starts on the marker too
                 update { it.copy(guess = it.guess.copy(userSpot = anchor)) }
@@ -464,7 +488,7 @@ class FeelViewModel(private val repo: FeelRepository) : ViewModel() {
             guessBase = if (g.size >= 0.6f) (g.spot ?: tray) else tray
         } else {
             val from = (if (g.onFloor) g.spot else g.userSpot) ?: return
-            spot = Placement.revealSpot(from, head, q.shape, trueSize, room)
+            spot = clearOfCard(Placement.revealSpot(from, head, q.shape, trueSize, room), q.shape, trueSize, onTray = false)
             guessBase = spot
         }
         val best = s.best[q.id]
@@ -660,6 +684,9 @@ class FeelViewModel(private val repo: FeelRepository) : ViewModel() {
         const val SCAN_TIMEOUT_MS = 5000L
         private const val NOTE_MS = 6000L
         private const val HEAD_STEP_M = 0.15f
+
+        /** Half diagonal of the question card (460 x 640 dp at 0.8 mm) for the view-cone test. */
+        private const val CARD_HALF_DIAG_M = 0.315f
 
         /** The design's QA guesses per question (`stateModel.qaCombos`). */
         val DEFAULT_GUESS = mapOf("co2-1kg" to 0.65f, "kg-gold" to 0.3f, "co2-flight" to 4.0f, "kg-hydrogen" to 1.0f, "co2-1t" to 1.0f, "big-co2-capita" to 2.0f)

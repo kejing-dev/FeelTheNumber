@@ -239,7 +239,7 @@ private fun ColumnScope.ResultPage(state: FeelUiState, onEvent: (FeelEvent) -> U
     Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
         Swatch(FeelColors.TrueTeal, 14.dp, Modifier.padding(bottom = 10.dp))
         Text(text = sizeText(q.shape, r.trueSize), style = FeelType.big, color = PicoTheme.colorScheme.labelPrimary, maxLines = 1, modifier = Modifier.probe("result_true"))
-        Text(text = q.title(state.en), style = FeelType.body, color = PicoTheme.colorScheme.labelPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(bottom = 4.dp))
+        Text(text = q.title(state.en), style = FeelType.body, color = PicoTheme.colorScheme.labelPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(bottom = 2.dp))
     }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Swatch(FeelColors.GuessBlue, 10.dp, dashed = true)
@@ -273,10 +273,10 @@ private fun ColumnScope.ResultPage(state: FeelUiState, onEvent: (FeelEvent) -> U
     Text(text = rs(R.string.progress_line, tried, setQs.size, three), style = FeelType.label, color = PicoTheme.colorScheme.labelPrimary, maxLines = 1)
     Spacer(modifier = Modifier.weight(1f))
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        WordButton(name = "to_marker", text = rs(R.string.action_to_marker), onClick = { onEvent(FeelEvent.BringToMarker) }, modifier = Modifier.weight(1f), enabled = done && state.marker != null && !state.atMarker, minWidth = 0.dp, iconRes = R.drawable.ic_bring)
-        WordButton(name = "hide", text = rs(if (r.hidden) R.string.action_show else R.string.action_hide), onClick = { onEvent(FeelEvent.ToggleHidden) }, modifier = Modifier.weight(1f), enabled = done, minWidth = 0.dp, iconRes = if (r.hidden) R.drawable.ic_eye else R.drawable.ic_eye_off)
+        WordButton(name = "to_marker", text = rs(R.string.action_to_marker), onClick = { onEvent(FeelEvent.BringToMarker) }, modifier = Modifier.weight(1.3f), enabled = done && state.marker != null && !state.atMarker, minWidth = 0.dp)
+        WordButton(name = "hide", text = rs(if (r.hidden) R.string.action_show else R.string.action_hide), onClick = { onEvent(FeelEvent.ToggleHidden) }, modifier = Modifier.weight(1f), enabled = done, minWidth = 0.dp)
         if (!r.onTray && r.trueSize >= Placement.WRAP_MIN_M) {
-            WordButton(name = "wrap", text = rs(if (r.wrapped) R.string.action_unwrap else R.string.action_wrap), onClick = { onEvent(FeelEvent.ToggleWrap) }, modifier = Modifier.weight(1f), enabled = done, minWidth = 0.dp, iconRes = R.drawable.ic_wrap)
+            WordButton(name = "wrap", text = rs(if (r.wrapped) R.string.action_unwrap else R.string.action_wrap), onClick = { onEvent(FeelEvent.ToggleWrap) }, modifier = Modifier.weight(1f), enabled = done, minWidth = 0.dp)
         }
     }
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -397,7 +397,7 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
             finalKey = fk
             showFinal(tb, wb, room, r.hidden, rebuildWire = !first)
         }
-        t.setTarget(if (state.phase == Phase.RESULT && !r.inside) tb else null)
+        t.setTarget(if (state.phase == Phase.RESULT && !r.inside && !lastConeTruth) tb else null)
     }
 
     private fun buildLevels(tb: Body, room: RoomBox) {
@@ -529,7 +529,8 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
             if (q >= 1f) slideFrom = null
         }
         val headInside = body.contains(head.position)
-        gv.setTappable(!headInside)
+        // a body in the view cone to the card takes no taps (it would swallow pinches meant for the card; QA q3-1)
+        gv.setTappable(!headInside && !lastConeGuess)
         gv.placeHandle(ui.page == Page.MAIN, head.position, ui.floorY)
     }
 
@@ -569,9 +570,14 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
         val truthBlocks = (ui.phase == Phase.RESULT || ui.phase == Phase.REVEALING) && (blocks(ui.trueBody) || blocks(ui.wireBody))
         truth?.setFade(truthBlocks && ui.reveal?.inside != true)
         if (guessBlocks != lastConeGuess || truthBlocks != lastConeTruth) {
+            val truthChanged = truthBlocks != lastConeTruth
             lastConeGuess = guessBlocks
             lastConeTruth = truthBlocks
             FeelLog.i("CONE guess=$guessBlocks truth=$truthBlocks")
+            if (truthChanged) {
+                val r = ui.reveal
+                truth?.setTarget(if (ui.phase == Phase.RESULT && r != null && !r.inside && !truthBlocks) ui.trueBody else null)
+            }
         }
     }
 

@@ -70,17 +70,17 @@ slides, the 8-level growth, inside check, card follow, tag, ghost ring) lives in
   a later scan replaces it ("Now using the scanned room"). The room page (deck -> Room, or [Room] on the virtual-room
   hint) has length / width / height steppers (0.1 m), [Around me], [Use the scan]; while it is open, dragging the floor
   moves the room and the stick turns it. The emulator room fits to 6.0 x 10.7 x 2.9 m (19 walls, 8 ceilings), floor y 0.40.
-- Guess: 0.25 m on the tray (0.75 m ahead, head - 0.5 m) until it is pulled to 0.30 m or more; it moves between tray
+- Guess (v0.1.1): 0.25 m on the tray (1.0 m above the anchor, on a stand) until it is pulled to 0.30 m or more; it moves between tray
   and floor only when a resize ends. The actual spot is the user's spot pushed to level radius + 0.8 m from the head
   (recomputed on resize / drag / tap only), stopped at the room's wall. Bigger than the room = clipped mesh once still.
 - Input: handle pull (system drag, 1 cm of hand = x1.08), slider (log 0.02 - 30 m), stick up/down (x2 per second);
   body drag (> 2 cm, hand travel x distance / 0.45 m), wall snap within 0.15 m / release at 0.25 m (+ tick);
-  floor pinch = new spot (floor catcher, a 30 x 30 m thin box); controller ray over the floor = ghost ring (S04);
+  floor pinch = the marker (floor catcher, a 30 x 30 m thin box), [Move to marker] moves the content there; controller ray over the floor = ghost ring (S04);
   stick left/right turns the guess (cubes; the ball only matters for its side handle) or the room on the room page.
   No head-forward ray anywhere: the head pose is only used to place things in front of you (D9) and for the card.
 - Reveal: 8 growth levels built off the main thread (64 x 32 ball / 6 x 16 x 16 cube, clamped to the room, with their
   cut rings) swapped in over 1.6 s (ease-out). The truth stands with its near surface >= 0.8 m from the head; truths
-  under 0.30 m appear on the tray. The guess wireframe slides onto the truth's axis. Inside the truth: inner surface 25 %.
+  under 0.30 m appear on the tray above the anchor. Any spot that would put a body in the view cone to the card is moved further out (10 cm steps), and a body still in the cone takes no taps. The guess wireframe slides onto the truth's axis. Inside the truth: inner surface 25 %.
 - Card: 460 x 640 dp at scale 1 (0.37 x 0.51 m), 30 degrees left / 20 down / 1.0 m, lazy follow (35 degrees, 0.5 s,
   0.6 s slide), turned about the vertical only. Glass panels rebuild their content 1.5 / 4 / 8 s after every
   page / state change (the idle emulator sometimes leaves a half-drawn black block otherwise; Chime Bells fix).
