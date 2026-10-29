@@ -19,13 +19,19 @@ object Placement {
     const val MIN_SIZE_M = 0.02f
     const val MAX_SIZE_M = 30f
 
-    /** Tray: 0.75 m ahead, 0.5 m below the head (taken once per question). */
-    const val TRAY_AHEAD_M = 0.75f
-    const val TRAY_DROP_M = 0.5f
+    /**
+     * Tray (v0.1.1): a stand 1.0 m above the anchor on the floor. Small bodies sit there, at the same place as
+     * everything else: nothing is put in front of the head any more (taste D1 "move to marker", D20).
+     */
+    const val TRAY_HEIGHT_M = 1.0f
     const val TRAY_RING_M = 0.30f
 
-    /** Default user spot: 1.8 m ahead on the floor. */
-    const val SPOT_AHEAD_M = 1.8f
+    /** Default anchor before the user has put a marker down: beside the panel, far away (taste D20). */
+    const val DEFAULT_ANCHOR_M = 2.5f
+    const val DEFAULT_ANCHOR_OFF_PANEL_DEG = 55f
+
+    /** View cone head -> panel (D20): content nearer than panel distance + 0.5 m must stay out of it. */
+    const val CONE_BEYOND_PANEL_M = 0.5f
 
     /** Handle pull: x1.08 per centimetre of vertical hand travel. */
     const val HANDLE_GAIN_PER_CM = 1.08f
@@ -71,25 +77,50 @@ object Placement {
 
     fun onFloor(size: Float): Boolean = size >= FLOOR_MIN_M
 
-    /** The tray point (the tray ring's centre; a body there sits on it). */
-    fun trayPoint(head: Vec3, facing: Vec3): Vec3 {
-        val f = RoomBox.level(facing)
-        return Vec3(head.x, head.y - TRAY_DROP_M, head.z) + f * TRAY_AHEAD_M
-    }
+    /** The tray point above a floor [spot] (the tray ring's centre; a body there sits on it). */
+    fun trayAt(spot: Vec3): Vec3 = Vec3(spot.x, spot.y + TRAY_HEIGHT_M, spot.z)
 
-    fun defaultSpot(head: Vec3, facing: Vec3, floorY: Float): Vec3 {
-        val f = RoomBox.level(facing)
-        return Vec3(head.x, floorY, head.z) + f * SPOT_AHEAD_M
+    /**
+     * The anchor used until the user puts a marker down: on the floor, [DEFAULT_ANCHOR_M] from the viewer, turned
+     * [DEFAULT_ANCHOR_OFF_PANEL_DEG] to the right of the direction of the question card (the card sits at the left, so
+     * this is right of straight ahead and well clear of the view cone to the card). Placed once; never follows the head.
+     */
+    fun defaultAnchor(head: Vec3, cardCenter: Vec3, floorY: Float): Vec3 {
+        val toCard = RoomBox.level(Vec3(cardCenter.x - head.x, 0f, cardCenter.z - head.z))
+        val right = Vec3(-toCard.z, 0f, toCard.x)
+        val a = Math.toRadians(DEFAULT_ANCHOR_OFF_PANEL_DEG.toDouble())
+        val dir = (toCard * kotlin.math.cos(a).toFloat() + right * kotlin.math.sin(a).toFloat()).normalized()
+        return Vec3(head.x, floorY, head.z) + dir * DEFAULT_ANCHOR_M
     }
 
     /**
-     * The actual spot: the user's spot pushed away along head -> spot until the level distance to the
+     * D20: does a body (centre, bounding radius) block the view from [eye] to a panel at [panel] of half diagonal
+     * [panelHalfDiag]? Only the part of the cone nearer than the panel + 0.5 m counts (behind that, the panel is drawn
+     * in front of it). A head inside the body counts as blocking.
+     */
+    fun blocksPanel(eye: Vec3, panel: Vec3, panelHalfDiag: Float, center: Vec3, radius: Float): Boolean {
+        val v = center - eye
+        val dist = v.length
+        if (dist <= radius) return true
+        val toPanel = panel - eye
+        val dPanel = toPanel.length
+        if (dPanel < 1e-3f) return false
+        if (dist - radius > dPanel + CONE_BEYOND_PANEL_M) return false
+        val cosA = (v.dot(toPanel) / (dist * dPanel)).coerceIn(-1f, 1f)
+        val ang = kotlin.math.acos(cosA)
+        val panelAng = kotlin.math.atan(panelHalfDiag / dPanel)
+        val bodyAng = kotlin.math.asin((radius / dist).coerceAtMost(1f))
+        return ang < panelAng + bodyAng
+    }
+
+    /**
+     * The actual spot: the user's spot (the marker) pushed away along head -> spot until the level distance to the
      * head is at least the body's level radius + 0.8 m; it stops at the room's wall (the axis stays in
      * the room). Only recomputed on resize, drag and floor taps, never because the head moved.
      */
-    fun actualSpot(user: Vec3, head: Vec3, facing: Vec3, shape: Shape, size: Float, room: RoomBox?): Vec3 {
+    fun actualSpot(user: Vec3, head: Vec3, shape: Shape, size: Float, room: RoomBox?): Vec3 {
         val flat = Vec3(user.x - head.x, 0f, user.z - head.z)
-        val dir = if (flat.length < 0.05f) RoomBox.level(facing) else flat.normalized()
+        val dir = if (flat.length < 0.05f) (room?.forward ?: Vec3.AHEAD) else flat.normalized()
         val need = Geometry.levelRadius(shape, size) + CLEARANCE_M
         var dist = maxOf(flat.length, need)
         val origin = Vec3(head.x, user.y, head.z)
@@ -101,17 +132,11 @@ object Placement {
      * Where the revealed pair stands: at [spot], unless the true body's near surface would come within
      * 0.8 m of the head, then pushed away along head -> spot (through walls if need be: the room cuts it).
      */
-    fun revealSpot(spot: Vec3, head: Vec3, facing: Vec3, shape: Shape, trueSize: Float): Vec3 {
+    fun revealSpot(spot: Vec3, head: Vec3, shape: Shape, trueSize: Float, room: RoomBox? = null): Vec3 {
         val flat = Vec3(spot.x - head.x, 0f, spot.z - head.z)
-        val dir = if (flat.length < 0.05f) RoomBox.level(facing) else flat.normalized()
+        val dir = if (flat.length < 0.05f) (room?.forward ?: Vec3.AHEAD) else flat.normalized()
         val need = Geometry.levelRadius(shape, trueSize) + CLEARANCE_M
         return Vec3(head.x, spot.y, head.z) + dir * maxOf(flat.length, need)
-    }
-
-    /** [Move in front of me]: straight ahead of the head's current heading, near surface 0.8 m away. */
-    fun frontSpot(head: Vec3, facing: Vec3, shape: Shape, size: Float, floorY: Float): Vec3 {
-        val f = RoomBox.level(facing)
-        return Vec3(head.x, floorY, head.z) + f * (Geometry.levelRadius(shape, size) + CLEARANCE_M)
     }
 
     /** [Wrap me]: the pair's axis right below the head. */

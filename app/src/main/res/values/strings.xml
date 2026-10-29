@@ -8,7 +8,7 @@
     <string name="hint_s02">No room found — using a virtual room (%1$s). Tap Room to adjust it.</string>
     <string name="hint_first">First guess: how big is 1 kg of CO₂? Pinch the handle on top and pull</string>
     <string name="hint_s03">Pinch the handle on top and pull it to the size you think, then tap Reveal</string>
-    <string name="hint_s04">Tap the floor to put it there</string>
+    <string name="hint_s04">Pull the trigger or pinch to put the marker here</string>
     <string name="hint_s05">Let go to keep this size</string>
     <string name="hint_s06">Drag it near a wall and it snaps on</string>
     <string name="hint_s07">Here comes the real size…</string>
@@ -17,6 +17,9 @@
     <string name="hint_s10">You\'re standing inside it</string>
     <string name="hint_s11">Pick a question</string>
     <string name="hint_s14">Set length, width and height, or drag the floor and turn with the stick to line the frame up with your walls</string>
+    <string name="action_to_marker">Move to marker</string>
+    <string name="hint_place_marker">Put a marker on the floor first: point the controller at the floor and pull the trigger, or look at the floor and pinch. Then tap Move to marker.</string>
+    <string name="hint_marker_set">Marker set. Tap Move to marker to bring it there.</string>
     <string name="note_scanned">Now using the scanned room</string>
     <string name="note_no_ceiling">No ceiling found: the top is not cut</string>
     <string name="joystick_hint">Stick left/right to rotate · up/down to resize</string>
@@ -26,12 +29,10 @@
     <string name="action_again">Guess again</string>
     <string name="action_next">Next →</string>
     <string name="action_next_set">Next set →</string>
-    <string name="action_to_front">In front</string>
     <string name="action_hide">Hide</string>
     <string name="action_show">Show</string>
     <string name="action_wrap">Wrap me</string>
     <string name="action_unwrap">Step out</string>
-    <string name="action_back_in_front">Bring back</string>
     <string name="action_room">Room</string>
     <string name="action_about">About</string>
     <string name="action_deck">Questions</string>

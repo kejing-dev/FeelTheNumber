@@ -14,6 +14,22 @@ Built by the factory's build station on 2026-10-27 (v0.1.0, debug) and run on em
 every designed state captured through the QA hooks, real gaze + pinch input checked for the floor tap, the handle pull
 and the body drag. Not yet run on a headset.
 
+## v0.1.1 (2026-10-28): marker placement, content never blocks the card
+
+Headset feedback on v0.1.0: "you used the headset ray to place the ball again … use the controller ray marker on the floor
+and [bring it to the marker]; otherwise the ball is right in front of me and blocks the UI". Now (taste D1 / D20):
+- A pinch / trigger on the floor puts a **marker** down (blue ring + post); it moves nothing. [Move to marker] (`to_marker`,
+  on the guess page and the result page) brings the guess or the revealed pair to it. Before any marker the content
+  stands 2.5 m out, 55 degrees right of the question card (taken once from the card's position); the hint asks for a
+  marker. Small bodies sit on a tray 1.0 m above the anchor (thin stand), not in front of the head any more.
+- [Bring back] and [In front] (head-forward placement) are gone. The anchor holds for the whole session (next / again /
+  deck return to it).
+- Every frame the guess / truth / wireframe are tested against the view cone eye -> card corners (nearer than card + 0.5 m);
+  inside it they drop to <= 30 % (`CONE guess= truth=` in the log).
+- Head-pose uses that remain (card follow, facing, clearance push, handle side, inside checks, room frame, wrap me) are
+  listed one by one in `../spatial-app-factory/apps/feel-number/build/ui-audit.md`.
+- Debug `spot --ef x --ef z` now = a marker at head + (x, z), then [Move to marker].
+
 ## Structure
 
 ```
@@ -83,7 +99,7 @@ tools/harness/fn.sh shot <name> [wait_s]        # console screenshot, two in a r
 | `goto` | `--es s S01..S14 [--es q <id>] [--es set co2/kilo/body/big]` | straight to a state with the design's QA setup: S01 (frozen), S02 (virtual room), S04 (aiming flag), S05 (guess 3.0 m), S06 (kg-water 1 m snapped to the wall ahead), S07 (frozen at 50 %), S08 co2-1kg 0.65, S09 co2-flight 4.0, S10 co2-1t 1.0 + wrap, S11 deck, S12 about, S14 room; `--es q` picks another question (kg-gold 0.3, kg-hydrogen 1.0, big-co2-capita 2.0 have their QA guesses) |
 | `q` | `--es id <id>` | fresh guess for that question |
 | `guess` | `--ef size 0.65` | guess size (m), tray / floor by the 0.30 m threshold |
-| `spot` | `--ef x 0.5 --ef z -2` | user's spot, metres from the head |
+| `spot` | `--ef x 0.5 --ef z -2` | marker at head + (x, z), then [Move to marker] |
 | `reveal` | `[--ef t 0.5]` | reveal; t freezes the growth; t = 1 jumps to the result |
 | `yaw` | `--ef deg 30` | guess turn |
 | `drag_pose` | `--ei on 1 [--es wall 1]` | drag visuals (S06), snapped to the wall ahead |
@@ -92,7 +108,7 @@ tools/harness/fn.sh shot <name> [wait_s]        # console screenshot, two in a r
 | `mute` / `wrap` / `freeze` / `noscan` | `--ei on 1 / 0` | mute; wrap me; freeze plane-driven state changes; ignore detected planes |
 | `room` | `--ef l 5 --ef w 4 --ef h 2.6 [--ei virtual 1]` | room size; virtual = drop the scan, virtual room |
 | `ray` | `--es v "ox,oy,oz,dx,dy,dz"` / `--es v off` | stand-in controller ray (ghost ring) |
-| `ui` | `--es id <control>` | presses a card control: reveal, again, next, to_front, hide, wrap, back_in_front, hint_room, deck, deck_close, set_*, pick_<id>, deck_room, deck_about, about_back, room_back, room_l/w/h_minus/plus, room_align, room_scan, lang_zh, lang_en, mute |
+| `ui` | `--es id <control>` | presses a card control: reveal, again, next, to_marker, hide, wrap, to_marker, hint_room, deck, deck_close, set_*, pick_<id>, deck_room, deck_about, about_back, room_back, room_l/w/h_minus/plus, room_align, room_scan, lang_zh, lang_en, mute |
 | `state` | | `STATE {json}` (also files/state.json): state id, question, guess / true size and volume, r, stars, verdict, visible share, cut, inside, room box |
 | `pose`, `panels`, `planes`, `park` | | scene queries; park = card back in front |
 

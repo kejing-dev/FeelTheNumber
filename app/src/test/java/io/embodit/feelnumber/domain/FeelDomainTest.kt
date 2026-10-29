@@ -83,7 +83,7 @@ class FeelDomainTest {
     fun clearancePushScalesWithRadius() {
         val user = Vec3(0f, 0f, -1.8f)
         for (r in listOf(0.1f, 1f, 5f)) {
-            val spot = Placement.actualSpot(user, head, Vec3.AHEAD, Shape.SPHERE, 2 * r, null)
+            val spot = Placement.actualSpot(user, head, Shape.SPHERE, 2 * r, null)
             assertEquals(maxOf(1.8f, r + 0.8f), -spot.z, 1e-4f)
             assertEquals(0f, spot.y, 1e-6f)
         }
@@ -94,9 +94,9 @@ class FeelDomainTest {
         // the viewer 1 m from the back wall of a 5 m room: the front wall is 4 m ahead
         val room = RoomBox.around(head, Vec3.AHEAD, floorY = 0f)
         val user = Vec3(0f, 0f, -1.8f)
-        val big = Placement.actualSpot(user, head, Vec3.AHEAD, Shape.SPHERE, 10f, room)
+        val big = Placement.actualSpot(user, head, Shape.SPHERE, 10f, room)
         assertEquals(4f, -big.z, 1e-3f)
-        val small = Placement.actualSpot(user, head, Vec3.AHEAD, Shape.SPHERE, 0.5f, room)
+        val small = Placement.actualSpot(user, head, Shape.SPHERE, 0.5f, room)
         assertEquals(1.8f, -small.z, 1e-4f)
         // the head moving does not move the user's spot: the rule only reads it when called
         assertEquals(user, Vec3(0f, 0f, -1.8f))
@@ -104,9 +104,9 @@ class FeelDomainTest {
 
     @Test
     fun revealPushKeepsNearSurface08m() {
-        val spot = Placement.revealSpot(Vec3(0f, 0f, -1.8f), head, Vec3.AHEAD, Shape.SPHERE, 4.513f)
+        val spot = Placement.revealSpot(Vec3(0f, 0f, -1.8f), head, Shape.SPHERE, 4.513f)
         assertEquals(4.513f / 2f + 0.8f, -spot.z, 1e-3f)
-        val keep = Placement.revealSpot(Vec3(0f, 0f, -3f), head, Vec3.AHEAD, Shape.SPHERE, 1f)
+        val keep = Placement.revealSpot(Vec3(0f, 0f, -3f), head, Shape.SPHERE, 1f)
         assertEquals(3f, -keep.z, 1e-4f)
     }
 
@@ -198,5 +198,43 @@ class FeelDomainTest {
         assertNull(Placement.snap(room, Vec3(1.2f, 0f, 0f), Shape.SPHERE, 1f, 0f, Placement.SNAP_IN_M))
         // once snapped it holds to 0.25 m
         assertTrue(Placement.snap(room, Vec3(1.3f, 0f, 0f), Shape.SPHERE, 1f, 0f, Placement.SNAP_OUT_M) != null)
+    }
+
+    /** v0.1.1 (taste D1 / D20): the default anchor stands 2.5 m out, 55 degrees right of the card, out of its view cone. */
+    @Test
+    fun defaultAnchorKeepsClearOfTheCard() {
+        // card 30 degrees left, 20 down, 1.0 m (the designed pose)
+        val card = head + Vec3(-0.4698f, -0.342f, -0.8138f)
+        val a = Placement.defaultAnchor(head, card, 0f)
+        assertEquals(0f, a.y, 1e-6f)
+        assertEquals(2.5f, Vec3(a.x - head.x, 0f, a.z - head.z).length, 1e-3f)
+        val toCard = Vec3(card.x - head.x, 0f, card.z - head.z).normalized()
+        val toAnchor = Vec3(a.x - head.x, 0f, a.z - head.z).normalized()
+        assertEquals(55.0, Math.toDegrees(kotlin.math.acos(toCard.dot(toAnchor).toDouble())), 0.1)
+        assertTrue(toAnchor.x > 0f) // right of straight ahead
+        // a 1 m ball and a 0.25 m ball on the tray above it do not block the card
+        val halfDiag = 0.315f
+        assertFalse(Placement.blocksPanel(head, card, halfDiag, Placement.center(a, 1f), 0.5f))
+        assertFalse(Placement.blocksPanel(head, card, halfDiag, Placement.center(Placement.trayAt(a), 0.25f), 0.125f))
+    }
+
+    @Test
+    fun viewConeToThePanel() {
+        val card = head + Vec3(0f, -0.342f, -0.94f)
+        val halfDiag = 0.315f
+        // halfway to the card on the line of sight: blocks
+        assertTrue(Placement.blocksPanel(head, card, halfDiag, head + Vec3(0f, -0.17f, -0.5f), 0.1f))
+        // the same direction but 2 m beyond the card: the card is drawn in front of it
+        assertFalse(Placement.blocksPanel(head, card, halfDiag, head + Vec3(0f, -1f, -2.75f), 0.2f))
+        // 40 degrees off to the side at the card's distance: clear
+        assertFalse(Placement.blocksPanel(head, card, halfDiag, head + Vec3(0.64f, -0.34f, -0.77f), 0.1f))
+        // head inside the body
+        assertTrue(Placement.blocksPanel(head, card, halfDiag, head, 1f))
+    }
+
+    @Test
+    fun trayStandsOnTheAnchor() {
+        val spot = Vec3(1f, 0.4f, -2f)
+        assertEquals(Vec3(1f, 1.4f, -2f), Placement.trayAt(spot))
     }
 }

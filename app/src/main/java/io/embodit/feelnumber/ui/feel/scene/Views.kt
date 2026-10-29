@@ -74,6 +74,8 @@ internal class WorldMesh(parent: Entity, private val material: Material, name: S
 
     fun setOffset(offset: Vec3) = holder.setLocal(position = offset)
 
+    fun setOpacity(k: Float) = holder.setOpacity(k)
+
     fun setVisible(on: Boolean) {
         if (on == visible) return
         visible = on
@@ -263,10 +265,28 @@ internal class GuessView(private val root: Entity, private val m: SceneMaterials
         handle.enabled = true
     }
 
-    fun showTray(at: Vec3?) {
+    /** The tray: a ring 1.0 m above the anchor on a thin stand down to the floor (v0.1.1: never in front of the head). */
+    fun showTray(at: Vec3?, floorY: Float) {
         tray.set(at != null)
-        if (at != null) tray.entity.setLocal(position = at + Vec3(0f, 0.001f, 0f))
+        if (at != null) {
+            tray.entity.setLocal(position = at + Vec3(0f, 0.001f, 0f))
+            stand.draw(Vec3(at.x, floorY, at.z), at, 0.012f, Vec3(1f, 0f, 0f))
+        } else stand.hide()
     }
+
+    /** Taste D20: see-through while the guess sits between the eyes and the question card. */
+    fun setFade(on: Boolean) {
+        if (on == faded) return
+        faded = on
+        val k = if (on) FADE else 1f
+        pivot.setOpacity(k)
+        clipped.setOpacity(k)
+        clippedLines.setOpacity(k)
+        handle.setOpacity(k)
+    }
+
+    private var faded = false
+    private val stand = Strip(root, MeshFactory.unitBand("trayStand"), m.tray, "trayStand")
 
     fun showFloorMark(at: Vec3?) {
         floorMark.set(at != null)
@@ -278,12 +298,16 @@ internal class GuessView(private val root: Entity, private val m: SceneMaterials
         runCatching { handle.destroy(true) }
         rod.destroy()
         tray.destroy()
+        stand.destroy()
         floorMark.destroy()
         clipped.destroy()
         clippedLines.destroy()
     }
 
     private companion object {
+        /** 55 % x 0.5 = 27.5 %: at most 30 % while in the view cone to the card (D20). */
+        const val FADE = 0.5f
+
         fun unitLines(s: Shape): MeshData {
             val b = Body(s, Vec3.ZERO, 1f)
             return MeshFactory.ribbons(Clip.wire(b, null), 0.007f) { p -> p.normalized() }
@@ -298,6 +322,29 @@ internal class MarksView(root: Entity, m: SceneMaterials, shared: SharedResource
 
     init {
         ghost.set(false)
+    }
+
+    /**
+     * The user's floor marker (taste D1): a solid ring and a short post, interaction blue; content goes there on
+     * [Move to marker].
+     */
+    private val marker = Toggle(Entity().named("marker").also { root.addChild(it) })
+    private val markerPost = Strip(root, MeshFactory.unitBand("markerPost"), m.floorMark, "markerPost")
+
+    init {
+        marker.entity.addChild(ModelEntity(shared.keep(MeshFactory.ring(0.14f, 0.17f, "markerRing")), m.floorMark))
+        marker.entity.addChild(ModelEntity(shared.keep(MeshFactory.disc(0.035f, "markerDot")), m.floorMark))
+        marker.set(false)
+    }
+
+    fun marker(at: Vec3?) {
+        marker.set(at != null)
+        if (at == null) {
+            markerPost.hide()
+            return
+        }
+        marker.entity.setLocal(position = at + Vec3(0f, 0.008f, 0f))
+        markerPost.draw(at, at + Vec3(0f, 0.35f, 0f), 0.02f, Vec3(1f, 0f, 0f))
     }
 
     fun ghost(at: Vec3?) {
@@ -337,6 +384,8 @@ internal class MarksView(root: Entity, m: SceneMaterials, shared: SharedResource
 
     fun destroy() {
         ghost.destroy()
+        marker.destroy()
+        markerPost.destroy()
         snap.destroy()
     }
 }
@@ -410,6 +459,16 @@ internal class TruthView(root: Entity, m: SceneMaterials) {
         target.components.set(CollisionComponent(collisionShape = listOf(shape), physicsMaterial = PhysicsMaterialResource()))
         if (target.components[InteractableComponent::class.java] == null) target.components.set(InteractableComponent())
         target.enabled = true
+    }
+
+    private var faded = false
+
+    /** Taste D20: see-through (70 % x 0.4 = 28 %) while the truth sits between the eyes and the question card. */
+    fun setFade(on: Boolean) {
+        if (on == faded) return
+        faded = on
+        val k = if (on) 0.4f else 1f
+        listOf(outer, lines, wire).forEach { it.setOpacity(k) }
     }
 
     fun hideAll() {

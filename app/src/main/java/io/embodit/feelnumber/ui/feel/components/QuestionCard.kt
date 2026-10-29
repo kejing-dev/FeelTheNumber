@@ -161,12 +161,12 @@ private fun ColumnScope.GuessPage(state: FeelUiState, onEvent: (FeelEvent) -> Un
         }
         Icon(painter = painterResource(R.drawable.ic_ball), contentDescription = rs(R.string.slider_big), modifier = Modifier.size(28.dp), tint = PicoTheme.colorScheme.labelPrimary)
     }
-    // hint line (+ [Room] in the virtual room, [Bring back] while guessing)
+    // hint line (+ [Move to marker] while guessing, [Room] in the virtual room)
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(text = hintText(state), style = FeelType.body, color = noteColor(state), maxLines = 4, modifier = Modifier.weight(1f).padding(top = 4.dp).probe("hint"))
+        Text(text = hintText(state), style = FeelType.body, color = noteColor(state), maxLines = 6, modifier = Modifier.weight(1f).padding(top = 4.dp).probe("hint"))
         if (ready) {
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                WordButton(name = "back_in_front", text = rs(R.string.action_back_in_front), onClick = { onEvent(FeelEvent.BackInFront) }, minWidth = 120.dp, iconRes = R.drawable.ic_bring)
+                WordButton(name = "to_marker", text = rs(R.string.action_to_marker), onClick = { onEvent(FeelEvent.BringToMarker) }, minWidth = 120.dp, iconRes = R.drawable.ic_bring, enabled = state.marker != null && !state.atMarker)
                 if (state.roomSource == RoomSource.VIRTUAL) {
                     WordButton(name = "hint_room", text = rs(R.string.action_room), onClick = { onEvent(FeelEvent.OpenRoom) }, minWidth = 120.dp, iconRes = R.drawable.ic_room)
                 }
@@ -198,12 +198,19 @@ private fun hintText(state: FeelUiState): String {
         "S05" -> rs(R.string.hint_s05)
         "S06" -> rs(R.string.hint_s06)
         "S07" -> rs(R.string.hint_s07)
-        "S08" -> rs(R.string.hint_s08)
+        "S08" -> if (state.marker != null && !state.atMarker) rs(R.string.hint_marker_set) else rs(R.string.hint_s08)
         "S09" -> rs(R.string.hint_s09)
         "S10" -> rs(R.string.hint_s10)
         "S11" -> rs(R.string.hint_s11)
         "S14" -> rs(R.string.hint_s14)
-        else -> if (state.questionId == QuestionBank.FIRST && !state.guess.touched) rs(R.string.hint_first) else rs(R.string.hint_s03)
+        else ->
+            when {
+                // taste D1: content goes where the user puts a marker, not in front of the head
+                state.marker == null -> rs(R.string.hint_place_marker)
+                !state.atMarker -> rs(R.string.hint_marker_set)
+                state.questionId == QuestionBank.FIRST && !state.guess.touched -> rs(R.string.hint_first)
+                else -> rs(R.string.hint_s03)
+            }
     }
 }
 
@@ -266,7 +273,7 @@ private fun ColumnScope.ResultPage(state: FeelUiState, onEvent: (FeelEvent) -> U
     Text(text = rs(R.string.progress_line, tried, setQs.size, three), style = FeelType.label, color = PicoTheme.colorScheme.labelPrimary, maxLines = 1)
     Spacer(modifier = Modifier.weight(1f))
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        WordButton(name = "to_front", text = rs(R.string.action_to_front), onClick = { onEvent(FeelEvent.MoveToFront) }, modifier = Modifier.weight(1f), enabled = done, minWidth = 0.dp, iconRes = R.drawable.ic_bring)
+        WordButton(name = "to_marker", text = rs(R.string.action_to_marker), onClick = { onEvent(FeelEvent.BringToMarker) }, modifier = Modifier.weight(1f), enabled = done && state.marker != null && !state.atMarker, minWidth = 0.dp, iconRes = R.drawable.ic_bring)
         WordButton(name = "hide", text = rs(if (r.hidden) R.string.action_show else R.string.action_hide), onClick = { onEvent(FeelEvent.ToggleHidden) }, modifier = Modifier.weight(1f), enabled = done, minWidth = 0.dp, iconRes = if (r.hidden) R.drawable.ic_eye else R.drawable.ic_eye_off)
         if (!r.onTray && r.trueSize >= Placement.WRAP_MIN_M) {
             WordButton(name = "wrap", text = rs(if (r.wrapped) R.string.action_unwrap else R.string.action_wrap), onClick = { onEvent(FeelEvent.ToggleWrap) }, modifier = Modifier.weight(1f), enabled = done, minWidth = 0.dp, iconRes = R.drawable.ic_wrap)

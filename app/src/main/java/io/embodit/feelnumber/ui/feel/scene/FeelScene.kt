@@ -319,10 +319,10 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
                 clipKey = ck
                 if (cut) gv.setClipped(body, room) else gv.unclip()
             }
-            gv.showTray(if (!state.guess.onFloor) state.guess.tray else null)
+            gv.showTray(if (!state.guess.onFloor) state.guess.tray else null, state.floorY)
             gv.showFloorMark(state.guess.spot)
         } else {
-            gv.showTray(null)
+            gv.showTray(null, state.floorY)
             gv.showFloorMark(null)
             if (clipKey.isNotEmpty()) {
                 clipKey = ""
@@ -339,8 +339,10 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
         val catcher = floorCatcher
         if (catcher != null && room != null) {
             catcher.setLocal(position = Vec3(head.position.x, room.floorY - 0.01f, head.position.z))
-            catcher.enabled = (guessing && state.page == Page.MAIN) || state.page == Page.ROOM
+            // the floor takes the marker while guessing and on the result (taste D1), and drags the room on its page
+            catcher.enabled = ((guessing || state.phase == Phase.RESULT) && state.page == Page.MAIN) || state.page == Page.ROOM
         }
+        marks?.marker(if (state.phase == Phase.GUESS || state.phase == Phase.RESULT) state.marker else null)
         syncPanels(state)
     }
 
@@ -500,6 +502,7 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
         guessFrame(now)
         revealFrame(now)
         insideFrame()
+        coneFrame(rig)
         placeTag(rig)
         controllerFrame(dt)
         if (hasHead && now - lastHeadSentMs >= HEAD_SAMPLE_MS) {
@@ -545,6 +548,36 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
         }
     }
 
+    /**
+     * Taste D20: content must not stand between the eyes and the question card. The card follows the head, so every
+     * frame the guess and the truth are tested against the view cone eye -> card (nearer than the card + 0.5 m); inside
+     * it they turn see-through (<= 30 %) until they are out again.
+     */
+    private fun coneFrame(rig: PanelRig) {
+        val card = rig[PanelSpec.CARD] ?: return
+        if (!card.shown || !hasHead) return
+        val eye = head.position
+        val (w, h) = PanelSpec.CARD_SIZE
+        val halfDiag = kotlin.math.sqrt(w * w + h * h) / 2f * PanelRig.DP_M * card.scale
+        fun blocks(b: Body?): Boolean {
+            if (b == null) return false
+            val r = if (b.shape == Shape.SPHERE) b.half else b.half * 1.732f
+            return Placement.blocksPanel(eye, card.position, halfDiag, b.center, r)
+        }
+        val guessBlocks = ui.phase == Phase.GUESS && blocks(ui.guessBody?.let { Body(it.shape, shownCenter ?: it.center, it.size, it.yawDeg) })
+        guessView?.setFade(guessBlocks)
+        val truthBlocks = (ui.phase == Phase.RESULT || ui.phase == Phase.REVEALING) && (blocks(ui.trueBody) || blocks(ui.wireBody))
+        truth?.setFade(truthBlocks && ui.reveal?.inside != true)
+        if (guessBlocks != lastConeGuess || truthBlocks != lastConeTruth) {
+            lastConeGuess = guessBlocks
+            lastConeTruth = truthBlocks
+            FeelLog.i("CONE guess=$guessBlocks truth=$truthBlocks")
+        }
+    }
+
+    private var lastConeGuess = false
+    private var lastConeTruth = false
+
     /** The question card: lower left of the view, lazy follow (out of a 35 degree window for 0.5 s -> slides back in 0.6 s). */
     private fun placeCard(rig: PanelRig, now: Long) {
         if (!hasHead) return
@@ -554,13 +587,17 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
         val pos = cardPos
         if (pos == null) {
             cardPos = wantPos
+            sink(FeelEvent.CardAt(wantPos))
             cardYaw = wantYaw
         } else if (cardSlideStartMs != NEVER) {
             val q = ((now - cardSlideStartMs) / CARD_SLIDE_MS).coerceIn(0f, 1f)
             val e = Ease.inOutCubic(q)
             cardPos = cardFromPos.lerp(wantPos, e)
             cardYaw = cardFromYaw + angleDiff(wantYaw, cardFromYaw) * e
-            if (q >= 1f) cardSlideStartMs = NEVER
+            if (q >= 1f) {
+                cardSlideStartMs = NEVER
+                sink(FeelEvent.CardAt(wantPos))
+            }
         } else {
             val hold = panelPressed || (lastPanelPressMs != NEVER && now - lastPanelPressMs < PANEL_HOLD_MS)
             val off = abs(angleDiff(headYaw, cardYaw)) > FOLLOW_DEG || pos.distanceTo(wantPos) > 0.6f

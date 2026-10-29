@@ -6,7 +6,7 @@
     <string name="hint_s02">没扫到房间，先用虚拟房间（%1$s）· 点「房间」调尺寸</string>
     <string name="hint_first">先猜：1 公斤二氧化碳有多大？捏住球顶的把手往上拉</string>
     <string name="hint_s03">捏住顶上的把手往上拉，拉到你觉得的大小，再点「揭晓」</string>
-    <string name="hint_s04">点一下地板，把它放到那里</string>
+    <string name="hint_s04">扣扳机或捏合，把标记放在这里</string>
     <string name="hint_s05">松手就定下来</string>
     <string name="hint_s06">拖到墙边会自动贴上去</string>
     <string name="hint_s07">真实大小来了…</string>
@@ -15,6 +15,9 @@
     <string name="hint_s10">你现在站在它里面</string>
     <string name="hint_s11">选一道题</string>
     <string name="hint_s14">调长宽高，或拖动地板、摇杆左右转动，让房间框对齐真墙</string>
+    <string name="action_to_marker">移到标记处</string>
+    <string name="hint_place_marker">先在地上放一个标记：手柄射线指地面扣扳机，或看着地面捏合；再点「移到标记处」</string>
+    <string name="hint_marker_set">标记已放好：点「移到标记处」把它移过去</string>
     <string name="note_scanned">已用扫描到的房间</string>
     <string name="note_no_ceiling">没识别到天花板：顶部不截断</string>
     <string name="joystick_hint">摇杆左右转动 · 上下变大变小</string>
@@ -23,12 +26,10 @@
     <string name="action_again">再猜一次</string>
     <string name="action_next">下一题 →</string>
     <string name="action_next_set">下一组 →</string>
-    <string name="action_to_front">移到面前</string>
     <string name="action_hide">隐藏</string>
     <string name="action_show">显示</string>
     <string name="action_wrap">包住我</string>
     <string name="action_unwrap">移出来</string>
-    <string name="action_back_in_front">回到面前</string>
     <string name="action_room">房间</string>
     <string name="action_about">关于</string>
     <string name="action_deck">题库</string>

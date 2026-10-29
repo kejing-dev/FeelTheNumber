@@ -27,7 +27,10 @@ data class Guess(
     /** Where it stands now: the floor (true) or the tray; only changes when a resize ends. */
     val onFloor: Boolean = false,
     val tray: Vec3? = null,
-    /** The user's spot (taps, drags, "back in front"), and the actual spot after the clearance push. */
+    /**
+     * The anchor the guess stands on (v0.1.1: the user's marker after "move to marker", a drag, or the default anchor
+     * beside the panel before any marker), and the actual spot after the clearance push. Kept across questions.
+     */
     val userSpot: Vec3? = null,
     val spot: Vec3? = null,
     val resizing: Boolean = false,
@@ -58,6 +61,8 @@ data class Reveal(
     val inside: Boolean = false,
     val wrapped: Boolean = false,
     val beforeWrap: Vec3? = null,
+    /** The anchor the pair was put at (the marker it was moved to, before the clearance push). */
+    val anchor: Vec3? = null,
     val hidden: Boolean = false,
 )
 
@@ -75,6 +80,8 @@ data class FeelUiState(
     /** A scanned room is available (room page offers "use the scanned room"). */
     val scanAvailable: Boolean = false,
     val guess: Guess = Guess(),
+    /** The floor marker the user put down with the controller ray or gaze + pinch (taste D1 "move to marker"). */
+    val marker: Vec3? = null,
     val reveal: Reveal? = null,
     val best: Map<String, Best> = emptyMap(),
     val note: Note? = null,
@@ -134,6 +141,14 @@ data class FeelUiState(
             return if (en) "$base+S13" else base
         }
 
+    /** The content stands on the marker already (nothing to move). */
+    val atMarker: Boolean
+        get() {
+            val m = marker ?: return false
+            val at = if (phase == Phase.RESULT || phase == Phase.REVEALING) reveal?.anchor else guess.userSpot
+            return at != null && Vec3(at.x - m.x, 0f, at.z - m.z).length < 0.05f
+        }
+
     /** The card turns to the result page once the growth has ended (S08 - S10); during S07 the guess page stays, greyed. */
     val showsResult: Boolean
         get() = phase == Phase.RESULT
@@ -184,13 +199,15 @@ sealed interface FeelEvent {
 
     data object Reveal : FeelEvent
 
-    data object BackInFront : FeelEvent
+    /** [Move to marker]: the guess (S03) or the revealed pair (S08 - S10) goes to the marker. */
+    data object BringToMarker : FeelEvent
+
+    /** Where the question card is (the scene reports it when the card settles): the default anchor keeps clear of it. */
+    data class CardAt(val center: Vec3) : FeelEvent
 
     data object Again : FeelEvent
 
     data object Next : FeelEvent
-
-    data object MoveToFront : FeelEvent
 
     data object ToggleHidden : FeelEvent
 
