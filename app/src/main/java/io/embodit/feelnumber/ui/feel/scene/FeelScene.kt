@@ -313,7 +313,7 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
                 }
             }
             // a body that pokes out of the room gets the clipped mesh once it stands still
-            val cut = room != null && !state.guess.resizing && !state.guess.dragging && Clip.isCut(room, body)
+            val cut = room != null && !state.guess.resizing && !state.guess.dragging && Clip.clipsGuess(room, body)
             val ck = if (cut) "$key:$room" else ""
             if (ck != clipKey) {
                 clipKey = ck

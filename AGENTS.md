@@ -30,6 +30,16 @@ and [bring it to the marker]; otherwise the ball is right in front of me and blo
   listed one by one in `../spatial-app-factory/apps/feel-number/build/ui-audit.md`.
 - Debug `spot --ef x --ef z` now = a marker at head + (x, z), then [Move to marker].
 
+## v0.1.2 (2026-10-28): released ball went flat against the wall
+
+Headset feedback on v0.1.1: "松开后球怎么直接变成 2D 的还贴到边上". Cause: on every release (resize end) the v0.1.1
+view-cone push ran without a limit and could move the guess metres past the room's wall; the room clip then clamped every
+vertex onto the wall plane, a flat disc. Now: the cone push runs only when content is put at an anchor (new question,
+[Move to marker]) and stops inside the room (`Placement.clearOfPanel`); a release, resize or drag never moves the guess
+for the cone (it only fades, and takes no taps while it sits between the eyes and the card); a drag stays exactly where it
+was let go; the guess is clipped by the room only while its axis is inside the room (`Clip.clipsGuess`), so a guess
+outside is drawn whole. The reveal no longer pushes for the cone either (fade only). Unit tests 22 (5 new release cases).
+
 ## Structure
 
 ```

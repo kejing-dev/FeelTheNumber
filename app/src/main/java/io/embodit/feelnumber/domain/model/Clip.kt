@@ -77,6 +77,13 @@ object Clip {
         }
     }
 
+    /**
+     * v0.1.2: the guess is drawn clipped by the room only while its axis stands inside the room. A guess whose centre is
+     * outside (dragged or pushed beyond a wall, a scanned room smaller than the real one) is drawn whole: clamping it
+     * would flatten all of it onto the wall ("松开后球变 2D 贴到边上").
+     */
+    fun clipsGuess(room: RoomBox, b: Body): Boolean = room.containsFlat(b.center) && isCut(room, b)
+
     fun cubeCorners(b: Body): List<Vec3> {
         val h = b.half
         val out = ArrayList<Vec3>(8)

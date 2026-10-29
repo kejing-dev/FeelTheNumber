@@ -139,6 +139,34 @@ object Placement {
         return Vec3(head.x, spot.y, head.z) + dir * maxOf(flat.length, need)
     }
 
+    /**
+     * Taste D20, applied once when content is put at an anchor ([Move to marker], a new question): the spot moves further
+     * out along eye -> spot, 10 cm at a time, until the body (on the floor, or on the tray above the spot) leaves the view
+     * cone to the panel. v0.1.2: the push never leaves the room - it stops where the body's level outline would reach the
+     * wall (a body pushed past the wall was flattened onto it by the room clip: "松开后球变 2D 贴到边上"). Content that
+     * cannot get out of the cone inside the room stays and is only faded by the scene.
+     */
+    fun clearOfPanel(spot: Vec3, eye: Vec3, panel: Vec3?, panelHalfDiag: Float, shape: Shape, size: Float, onTray: Boolean, room: RoomBox?): Vec3 {
+        if (panel == null) return spot
+        val flat = Vec3(spot.x - eye.x, 0f, spot.z - eye.z)
+        if (flat.length < 0.05f) return spot
+        val dir = flat.normalized()
+        val r = boundingRadius(shape, size)
+        val origin = Vec3(eye.x, spot.y, eye.z)
+        val maxDist = room?.exitDistance(origin, dir)?.let { it - Geometry.levelRadius(shape, size) } ?: Float.MAX_VALUE
+        var dist = flat.length
+        fun blocks(d: Float): Boolean {
+            val at = origin + dir * d
+            val base = if (onTray) trayAt(at) else at
+            return blocksPanel(eye, panel, panelHalfDiag, center(base, size), r)
+        }
+        while (blocks(dist) && dist + 0.1f <= maxDist && dist < flat.length + 8f) dist += 0.1f
+        return if (dist == flat.length) spot else origin + dir * dist
+    }
+
+    /** Radius of the sphere around a body (ball: R; cube: half the space diagonal). */
+    fun boundingRadius(shape: Shape, size: Float): Float = if (shape == Shape.SPHERE) size / 2f else size * 0.866f
+
     /** [Wrap me]: the pair's axis right below the head. */
     fun wrapSpot(head: Vec3, floorY: Float): Vec3 = Vec3(head.x, floorY, head.z)
 

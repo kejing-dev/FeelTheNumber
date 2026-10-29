@@ -237,4 +237,70 @@ class FeelDomainTest {
         val spot = Vec3(1f, 0.4f, -2f)
         assertEquals(Vec3(1f, 1.4f, -2f), Placement.trayAt(spot))
     }
+
+    // ---------------------------------------------------------------------------------------------
+    // v0.1.2: "松开后球变 2D 贴到边上" - releases in the view cone, near a wall, outside the room
+    // ---------------------------------------------------------------------------------------------
+
+    private val room4 = RoomBox(Vec3.ZERO, 0f, width = 4f, length = 4f, height = 2.6f, floorY = 0f)
+    private val eye = Vec3(0f, 1.6f, 1f) // 1 m from the back wall, looking along -z
+    private val card = eye + Vec3(-0.47f, -0.34f, -0.81f)
+
+    @Test
+    fun anchorPushNeverLeavesTheRoom() {
+        // a 3 m ball put down right in the card's line of sight, 1 m out: the push stops inside the room
+        val spot = Vec3(-0.6f, 0f, 0f)
+        val out = Placement.clearOfPanel(spot, eye, card, 0.315f, Shape.SPHERE, 3f, onTray = false, room = room4)
+        val body = Body(Shape.SPHERE, Placement.center(out, 3f), 3f)
+        assertTrue("centre stays in the room", room4.containsFlat(body.center))
+        // the old unbounded push went up to 8 m: past the wall, then flattened by the room clip
+        val far = Vec3(eye.x, 0f, eye.z) + (spot - Vec3(eye.x, 0f, eye.z)).normalized() * 8f
+        assertFalse(room4.containsFlat(far))
+    }
+
+    @Test
+    fun anchorPushClearsTheConeWhenThereIsRoom() {
+        val spot = Vec3(-0.5f, 0f, 0.2f) // a 0.25 m ball on the tray, right under the card
+        val out = Placement.clearOfPanel(spot, eye, card, 0.315f, Shape.SPHERE, 0.25f, onTray = true, room = room4)
+        assertTrue(out.distanceTo(spot) > 0.05f)
+        assertFalse(Placement.blocksPanel(eye, card, 0.315f, Placement.center(Placement.trayAt(out), 0.25f), 0.125f))
+        assertTrue(room4.containsFlat(out))
+    }
+
+    @Test
+    fun anchorPushLeavesClearSpotsAlone() {
+        val spot = Vec3(1f, 0f, -1f) // right of straight ahead, nowhere near the card
+        assertEquals(spot, Placement.clearOfPanel(spot, eye, card, 0.315f, Shape.SPHERE, 1f, onTray = false, room = room4))
+        assertEquals(spot, Placement.clearOfPanel(spot, eye, null, 0.315f, Shape.SPHERE, 1f, onTray = false, room = room4))
+    }
+
+    @Test
+    fun guessOutsideTheRoomIsDrawnWholeNotFlat() {
+        // released 0.5 m beyond the front wall (z = -2): clamping it would put every vertex on the wall (flat, "2D")
+        val outside = Body(Shape.SPHERE, Vec3(0f, 0.5f, -2.5f), 1f)
+        val flat = Clip.body(outside, room4)
+        assertTrue(flat.positions.all { kotlin.math.abs(it.z + 2f) < 1e-4f }) // the bug: all on the wall plane
+        assertFalse(Clip.clipsGuess(room4, outside))
+        // straddling the wall with its centre inside: clipped (the design's "cut by the room")
+        assertTrue(Clip.clipsGuess(room4, Body(Shape.SPHERE, Vec3(0f, 0.5f, -1.8f), 1f)))
+        // well inside: not clipped
+        assertFalse(Clip.clipsGuess(room4, Body(Shape.SPHERE, Vec3(0f, 0.5f, 0f), 1f)))
+        // near a wall but touching only: not clipped
+        assertFalse(Clip.clipsGuess(room4, Body(Shape.CUBE, Vec3(1.5f, 0.5f, 0f), 1f)))
+    }
+
+    @Test
+    fun releaseKeepsSizeAndOnlyFadesInTheCone() {
+        // a release in the cone keeps the spot (no push) and the size; the scene fades it (blocksPanel true)
+        // a 2 m ball let go on the eye -> card line, 1.76 m out (its centre 1 m high sits on that line)
+        val released = Vec3(-0.83f, 0f, -0.43f)
+        val body = Body(Shape.SPHERE, Placement.center(released, 2f), 2f)
+        assertTrue(Placement.blocksPanel(eye, card, 0.315f, body.center, Placement.boundingRadius(Shape.SPHERE, 2f)))
+        assertEquals(2f, body.size, 0f)
+        assertEquals(released.x, body.center.x, 0f)
+        assertEquals(released.z, body.center.z, 0f)
+        // and once moved out, it is solid again
+        val clear = Body(Shape.SPHERE, Placement.center(Vec3(1.2f, 0f, -1f), 0.8f), 0.8f)
+        assertFalse(Placement.blocksPanel(eye, card, 0.315f, clear.center, 0.4f))
+    }
 }
