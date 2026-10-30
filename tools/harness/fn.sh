@@ -2,7 +2,7 @@
 # QA helper for Feel the Number.
 #   fn.sh cmd <command> [am extras...]   send a debug broadcast and print the reply lines
 #   fn.sh shot <name> [wait_s]           console screenshot (two in a row, the second kept) -> $SHOTS/<name>.png
-SERIAL=${SERIAL:-emulator-5566}
+SERIAL=${SERIAL:-emulator-5562}
 ADB="$LOCALAPPDATA/Android/Sdk/platform-tools/adb.exe"
 SHOTS=${SHOTS:-C:/Users/Admin/Downloads/spatial-app-factory/apps/feel-number/build/shots}
 case "$1" in

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Build output -> emulator: install -r, cold start, wait for the scene.
-SERIAL=${SERIAL:-emulator-5566}
+SERIAL=${SERIAL:-emulator-5562}
 ADB="$LOCALAPPDATA/Android/Sdk/platform-tools/adb.exe"
 APK=C:/Users/Admin/Downloads/feel-number/app/build/outputs/apk/debug/app-debug.apk
 "$ADB" -s $SERIAL shell am force-stop io.embodit.feelnumber
