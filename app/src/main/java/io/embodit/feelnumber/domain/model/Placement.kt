@@ -77,8 +77,18 @@ object Placement {
 
     fun onFloor(size: Float): Boolean = size >= FLOOR_MIN_M
 
-    /** A base within this of the floor counts as standing on it. */
-    const val ON_FLOOR_M = 0.02f
+    /** A base within this of the floor counts as standing on it (v0.1.5, M3: 10 cm, a hand drifts a few cm). */
+    const val ON_FLOOR_M = 0.10f
+
+    /**
+     * Turn (degrees, room convention: forward = (sin, 0, -cos)) that points a body's -Z face from [from] towards [to],
+     * level (taste D10: worked out once when the content is placed, never per frame).
+     */
+    fun faceYaw(from: Vec3, to: Vec3): Float {
+        val d = Vec3(to.x - from.x, 0f, to.z - from.z)
+        if (d.length < 1e-3f) return 0f
+        return RoomBox.yawOf(d)
+    }
 
     /** Height of a released base above the floor (v0.1.4: kept as released; never below the floor). */
     fun liftOf(base: Vec3, floorY: Float): Float = (base.y - floorY).coerceAtLeast(0f).let { if (it <= ON_FLOOR_M) 0f else it }

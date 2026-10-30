@@ -265,6 +265,7 @@ private fun ColumnScope.ResultPage(state: FeelUiState, onEvent: (FeelEvent) -> U
             Text(text = rs(if (r.inside) R.string.inside_line else R.string.cut_line, pct), style = FeelType.title, color = PicoTheme.colorScheme.labelPrimary, maxLines = 1)
         }
     }
+    if (r.movedBack) Text(text = rs(R.string.moved_back), style = FeelType.label, color = PicoTheme.colorScheme.labelPrimary, maxLines = 2, modifier = Modifier.probe("moved_back"))
     Text(text = q.fact(state.en), style = FeelType.body, color = PicoTheme.colorScheme.labelPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
     Text(text = rs(R.string.source_line, q.source(state.en)), style = FeelType.small, color = PicoTheme.colorScheme.labelPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
     val setQs = QuestionBank.inSet(q.set)
@@ -502,6 +503,16 @@ private fun RoomStepper(name: String, text: String, onStep: (Int) -> Unit) {
 // -------------------------------------------------------------------------------------------------
 // size tag
 // -------------------------------------------------------------------------------------------------
+
+/** [Bring the card back] (taste D21): head-locked pill shown only while the question card is out of view. */
+@Composable
+internal fun RecallPill(filled: Boolean, onRecall: () -> Unit) {
+    val (w, h) = PanelSpec.RECALL_SIZE
+    Glass(width = w.dp, height = h.dp, corner = 36.dp, padding = 12.dp, refreshKey = filled) {
+        if (!filled) return@Glass
+        WordButton(name = "recall_card", text = rs(R.string.action_recall_card), onClick = onRecall, modifier = Modifier.fillMaxWidth(), primary = true, minWidth = 0.dp, iconRes = R.drawable.ic_recall)
+    }
+}
 
 /** The size tag above the true body (design `panels.sizeTag`). */
 @Composable

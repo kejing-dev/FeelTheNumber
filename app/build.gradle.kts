@@ -12,8 +12,8 @@ android {
         applicationId = "io.embodit.feelnumber"
         minSdk = 35
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.1.4"
+        versionCode = 6
+        versionName = "0.1.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters.add("arm64-v8a") }
@@ -37,6 +37,10 @@ android {
     }
     buildFeatures {
         compose = true
+    }
+    // ViewModel state-machine tests (B4): android.util.Log / SystemClock return defaults on the JVM
+    testOptions {
+        unitTests.isReturnDefaultValues = true
     }
 }
 

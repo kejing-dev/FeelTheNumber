@@ -9,6 +9,7 @@ import com.pico.spatial.core.container.SpatialViewContent
 import com.pico.spatial.core.ecs.CollisionComponent
 import com.pico.spatial.core.ecs.Entity
 import com.pico.spatial.core.ecs.InteractableComponent
+import com.pico.spatial.core.ecs.ModelEntity
 import com.pico.spatial.core.ecs.SceneUpdateContext
 import com.pico.spatial.core.ecs.System
 import com.pico.spatial.core.ecs.TransformComponent
@@ -95,6 +96,7 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
     private var marks: MarksView? = null
     private var roomView: RoomView? = null
     private var floorCatcher: Entity? = null
+    private var cardGrip: Entity? = null
     private var attached = false
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -129,7 +131,7 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
     private var inside = false
 
     // input
-    private enum class DragMode { RESIZE, MOVE_PENDING, MOVE, PAIR, ROOM }
+    private enum class DragMode { RESIZE, MOVE_PENDING, MOVE, PAIR, ROOM, CARD }
 
     private class Drag(val mode0: DragMode, val baseSize: Float, val startSpot: Vec3?, val gain: Float) {
         var mode = mode0
@@ -148,10 +150,6 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
     // panels
     private var cardYaw = 0f
     private var cardPos: Vec3? = null
-    private var cardOutSinceMs = NEVER
-    private var cardSlideStartMs = NEVER
-    private var cardFromPos = Vec3.ZERO
-    private var cardFromYaw = 0f
     private var panelPressed = false
     private var lastPanelPressMs = NEVER
 
@@ -181,7 +179,9 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
         this.rig = rig
         for (id in PanelSpec.pool) {
             val (w, h) = PanelSpec.size(id)
-            rig.world(id, w, h)
+            // the recall pill rides with the head (bottom of the view, 20 degrees down, 0.9 m); it only shows while the
+            // card is out of view, and it is the way back to a card that stays put (taste D21)
+            if (id == PanelSpec.RECALL) rig.head(id, Vec3(0f, -0.31f, -0.85f), 1f, w, h) else rig.world(id, w, h)
         }
         headTracker.start()
         controller.start()
@@ -215,6 +215,14 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
                 root.addChild(it)
                 it.components.set(CollisionComponent(collisionShape = listOf(ShapeResource.createBox(Vector3(30f, 0.02f, 30f))), physicsMaterial = PhysicsMaterialResource()))
                 it.components.set(InteractableComponent())
+                it.enabled = false
+            }
+        cardGrip =
+            ModelEntity(sh.keep(MeshFactory.box(Vec3(0.22f, 0.022f, 0.022f), 0.011f)), m.handle).named("cardGrip").also {
+                root.addChild(it)
+                it.components.set(CollisionComponent(collisionShape = listOf(ShapeResource.createBox(Vector3(0.30f, 0.07f, 0.07f))), physicsMaterial = PhysicsMaterialResource()))
+                it.components.set(InteractableComponent())
+                runCatching { it.components.set(com.pico.spatial.core.ecs.HoverEffectComponent()) }
                 it.enabled = false
             }
         attached = true
@@ -253,6 +261,8 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
         marks?.destroy()
         roomView?.destroy()
         runCatching { floorCatcher?.destroy(true) }
+        runCatching { cardGrip?.destroy(true) }
+        cardGrip = null
         levels.forEach { runCatching { it.close() } }
         levels = emptyList()
         runCatching { stageRoot?.destroy(true) }
@@ -586,46 +596,56 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
     private var lastConeGuess = false
     private var lastConeTruth = false
 
-    /** The question card: lower left of the view, lazy follow (out of a 35 degree window for 0.5 s -> slides back in 0.6 s). */
+    /**
+     * The question card (v0.1.5, B2 / taste D21): put down once at the designed pose (30 degrees left, 20 down, 1.0 m of the
+     * view at that moment), turned towards the viewer once, then fixed in the room. It moves only when the user drags the
+     * grip bar under it, or presses [Bring the card back] (the pill that shows while the card is out of view); each time
+     * it turns to the viewer once more. No lazy follow, no per-frame facing.
+     */
     private fun placeCard(rig: PanelRig, now: Long) {
         if (!hasHead) return
         val slot = rig[PanelSpec.CARD] ?: return
-        val headYaw = yawOf(head.forward)
-        val (wantPos, wantYaw) = cardPose(headYaw)
-        val pos = cardPos
-        if (pos == null) {
-            cardPos = wantPos
-            sink(FeelEvent.CardAt(wantPos))
-            cardYaw = wantYaw
-        } else if (cardSlideStartMs != NEVER) {
-            val q = ((now - cardSlideStartMs) / CARD_SLIDE_MS).coerceIn(0f, 1f)
-            val e = Ease.inOutCubic(q)
-            cardPos = cardFromPos.lerp(wantPos, e)
-            cardYaw = cardFromYaw + angleDiff(wantYaw, cardFromYaw) * e
-            if (q >= 1f) {
-                cardSlideStartMs = NEVER
-                sink(FeelEvent.CardAt(wantPos))
-            }
-        } else {
-            val hold = panelPressed || (lastPanelPressMs != NEVER && now - lastPanelPressMs < PANEL_HOLD_MS)
-            val off = abs(angleDiff(headYaw, cardYaw)) > FOLLOW_DEG || pos.distanceTo(wantPos) > 0.6f
-            if (!off || hold) {
-                cardOutSinceMs = NEVER
-            } else if (cardOutSinceMs == NEVER) {
-                cardOutSinceMs = now
-            } else if (now - cardOutSinceMs >= OUT_MS) {
-                cardFromPos = pos
-                cardFromYaw = cardYaw
-                cardSlideStartMs = now
-                cardOutSinceMs = NEVER
-                FeelLog.i("FOLLOW card slide")
-            }
+        if (cardPos == null) {
+            val (p, _) = cardPose(yawOf(head.forward))
+            setCard(p, "start")
         }
         val p = cardPos ?: return
-        // turned about the vertical only, towards the head
+        slot.place(p, Quat4.axisAngle(Vec3.UP, cardYaw), PanelSpec.CARD_SCALE)
+        placeGrip(p)
+        // the recall pill: only while the card is out of view (more than 50 degrees off the view, or farther than 3 m)
+        val pill = rig[PanelSpec.RECALL]
+        val to = p - head.position
+        val off = to.length > 3f || to.normalized().dot(head.forward) < CARD_OUT_OF_VIEW_COS
+        if (pill != null) {
+            if (off && ui.page != Page.ROOM) pill.show(null, null) else pill.hide()
+        }
+        @Suppress("UNUSED_EXPRESSION") now
+    }
+
+    /** Puts the card at [p], turned to the viewer once; reports it (default anchor and view cone follow it). */
+    private fun setCard(p: Vec3, why: String) {
+        cardPos = p
         val to = Vec3(head.position.x - p.x, 0f, head.position.z - p.z)
-        val faceYaw = atan2(to.x.toDouble(), to.z.toDouble()).toFloat()
-        slot.place(p, Quat4.axisAngle(Vec3.UP, faceYaw), PanelSpec.CARD_SCALE)
+        cardYaw = atan2(to.x.toDouble(), to.z.toDouble()).toFloat()
+        sink(FeelEvent.CardAt(p))
+        FeelLog.i("CARD $why at=${FeelLog.pos(p)}")
+    }
+
+    /** [Bring the card back]: straight ahead, 15 degrees below the view, 1.0 m (taste D21). */
+    fun recallCard() {
+        if (!hasHead) return
+        val f = RoomBox.level(head.forward)
+        val down = Math.toRadians(RECALL_DOWN_DEG.toDouble())
+        setCard(head.position + f * (CARD_DISTANCE_M * cos(down)).toFloat() - Vec3(0f, (CARD_DISTANCE_M * sin(down)).toFloat(), 0f), "recall")
+    }
+
+    /** The grip bar 4 cm under the card's bottom edge (drag it to move the card). */
+    private fun placeGrip(p: Vec3) {
+        val grip = cardGrip ?: return
+        val (_, h) = PanelSpec.CARD_SIZE
+        val below = h * PanelRig.DP_M * PanelSpec.CARD_SCALE / 2f + 0.045f
+        grip.setLocal(position = p - Vec3(0f, below, 0f), rotation = Quat4.axisAngle(Vec3.UP, cardYaw))
+        grip.enabled = true
     }
 
     /** Designed card pose for a head heading [yaw] (radians, 0 = -Z): left and down of the view. */
@@ -772,6 +792,8 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
                             Drag(DragMode.PAIR, 0f, s.reveal?.spot, gainFor(s.reveal?.spot))
                         s.page == Page.ROOM && target === floorCatcher ->
                             Drag(DragMode.ROOM, 0f, stage, gainFor(stage))
+                        target === cardGrip && cardPos != null ->
+                            Drag(DragMode.CARD, 0f, cardPos, gainFor(cardPos).coerceAtMost(2f))
                         else -> null
                     }
                 FeelLog.i("DRAG start target=$name mode=${d?.mode ?: "none"}")
@@ -798,6 +820,9 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
                         val step = (d.hand - d.prevHand)
                         sink(FeelEvent.PairMoved(Vec3(step.x, 0f, step.z) * d.gain))
                     }
+                    DragMode.CARD -> d.startSpot?.let { sp ->
+                        cardPos = sp + d.hand * d.gain
+                    }
                     DragMode.ROOM -> {
                         val step = (d.hand - d.prevHand)
                         sink(FeelEvent.RoomShift(Vec3(step.x, 0f, step.z) * d.gain))
@@ -812,6 +837,7 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
                 when (d.mode) {
                     DragMode.RESIZE -> sink(FeelEvent.ResizeEnded)
                     DragMode.MOVE -> sink(FeelEvent.DragEnded)
+                    DragMode.CARD -> cardPos?.let { setCard(it, "dragged") }
                     else -> Unit
                 }
             }
@@ -891,8 +917,8 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
         private const val CARD_LEFT_DEG = 30f
         private const val CARD_DOWN_DEG = 20f
         private const val CARD_DISTANCE_M = 1.0f
-        private const val FOLLOW_DEG = 0.61f // 35 degrees
-        private const val OUT_MS = 500L
-        private const val CARD_SLIDE_MS = 600f
+        /** The card counts as out of view beyond 50 degrees off the view direction. */
+        private const val CARD_OUT_OF_VIEW_COS = 0.643f
+        private const val RECALL_DOWN_DEG = 15f
     }
 }

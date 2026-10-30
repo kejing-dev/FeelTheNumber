@@ -10,7 +10,7 @@
     <string name="hint_s03">Pinch the handle on top and pull it to the size you think, then tap Reveal</string>
     <string name="hint_s04">Pull the trigger or pinch to put the marker here</string>
     <string name="hint_s05">Let go to keep this size</string>
-    <string name="hint_s06">Drag it near a wall and it snaps on</string>
+    <string name="hint_s06">Let go and it stays right there</string>
     <string name="hint_s07">Here comes the real size…</string>
     <string name="hint_s08">How close were you? Tap Next to go on</string>
     <string name="hint_s09">It is bigger than your room: a big part is beyond the walls</string>
@@ -21,7 +21,7 @@
     <string name="hint_place_marker">Put a marker on the floor first: point the controller at the floor and pull the trigger, or look at the floor and pinch. Then tap Move to marker.</string>
     <string name="hint_marker_set">Marker set. Tap Move to marker to bring it there.</string>
     <string name="note_scanned">Now using the scanned room</string>
-    <string name="note_no_ceiling">No ceiling found: the top is not cut</string>
+    <string name="note_no_ceiling">No ceiling found</string>
     <string name="joystick_hint">Stick left/right to rotate · up/down to resize</string>
 
     <!-- controls -->
@@ -87,4 +87,6 @@
     <string name="room_use_scan">Use the scan</string>
     <string name="room_shorter">Smaller</string>
     <string name="room_longer">Larger</string>
+    <string name="action_recall_card">Bring the card back</string>
+    <string name="moved_back">It is too big to grow under your guess without reaching you, so it stands a little farther back.</string>
 </resources>

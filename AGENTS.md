@@ -30,6 +30,22 @@ and [bring it to the marker]; otherwise the ball is right in front of me and blo
   listed one by one in `../spatial-app-factory/apps/feel-number/build/ui-audit.md`.
 - Debug `spot --ef x --ef z` now = a marker at head + (x, z), then [Move to marker].
 
+## v0.1.5 (2026-10-29): critic fixes (card fixed, truth on the floor, no snap)
+
+From the critic report on v0.1.4 (`../spatial-app-factory/apps/feel-number/critic/build-v0.1.4.md`):
+- The truth appears the way the real thing would: on the floor at real size (under 0.30 m on the stand 1 m above), not
+  at the guess's temporary height; only the truth moves sideways when it would reach the viewer (the card then says so,
+  `Reveal.movedBack`). The guess wireframe stays where the guess was left. "Wrap me" / "X % fits" use the floor truth.
+- The question card is put down once (30 left / 20 down / 1.0 m, turned to you once) and stays fixed. Drag the grip
+  bar under it to move it; when it is out of view (> 50 degrees or > 3 m) a "Bring the card back" pill appears under the
+  view and puts it straight ahead. No lazy follow, no per-frame facing.
+- Result page [Move to marker] also carries the next guess onto the marker (next / again start there).
+- No wall snap; a base within 10 cm of the floor counts as on the floor (`Placement.ON_FLOOR_M`).
+- Every question (and [Move to marker]) turns the body to face where you stand, once (`Placement.faceYaw`).
+- Debug `guess`, `drag_pose` and `goto` send the same `FeelEvent`s as real input (no state shortcuts).
+- Icons: standard Material Icons (Apache 2.0) from `tools/make_icons.py`, contact sheet `tools/icons.html`.
+- `FeelPlacementStateTest`: the placement state machine driven by events, and the four-direction facing test.
+
 ## v0.1.4 (2026-10-29): it stays where you leave it
 
 Headset feedback: "拉那个球之后好像会掉下去，保持球的位置". A resize no longer moves the guess (no tray -> floor drop on
@@ -100,15 +116,15 @@ slides, the 8-level growth, inside check, card follow, tag, ghost ring) lives in
   and floor only when a resize ends. The actual spot is the user's spot pushed to level radius + 0.8 m from the head
   (recomputed on resize / drag / tap only), stopped at the room's wall. Bigger than the room = clipped mesh once still.
 - Input: handle pull (system drag, 1 cm of hand = x1.08), slider (log 0.02 - 30 m), stick up/down (x2 per second);
-  body drag (> 2 cm, hand travel x distance / 0.45 m), wall snap within 0.15 m / release at 0.25 m (+ tick);
+  body drag (> 2 cm, hand travel x distance / 0.45 m), no wall snap (v0.1.5);
   floor pinch = the marker (floor catcher, a 30 x 30 m thin box), [Move to marker] moves the content there; controller ray over the floor = ghost ring (S04);
   stick left/right turns the guess (cubes; the ball only matters for its side handle) or the room on the room page.
   No head-forward ray anywhere: the head pose is only used to place things in front of you (D9) and for the card.
 - Reveal: 8 growth levels built off the main thread (64 x 32 ball / 6 x 16 x 16 cube, clamped to the room, with their
   cut rings) swapped in over 1.6 s (ease-out). The truth stands with its near surface >= 0.8 m from the head; truths
   under 0.30 m appear on the tray above the anchor. Any spot that would put a body in the view cone to the card is moved further out (10 cm steps), and a body still in the cone takes no taps. The guess wireframe slides onto the truth's axis. Inside the truth: inner surface 25 %.
-- Card: 460 x 640 dp at scale 1 (0.37 x 0.51 m), 30 degrees left / 20 down / 1.0 m, lazy follow (35 degrees, 0.5 s,
-  0.6 s slide), turned about the vertical only. Glass panels rebuild their content 1.5 / 4 / 8 s after every
+- Card: 460 x 640 dp at scale 1 (0.37 x 0.51 m), 30 degrees left / 20 down / 1.0 m, fixed where it is put
+  (v0.1.5: grip bar to drag, "Bring the card back" pill), turned about the vertical only. Glass panels rebuild their content 1.5 / 4 / 8 s after every
   page / state change (the idle emulator sometimes leaves a half-drawn black block otherwise; Chime Bells fix).
   Text is always labelPrimary / labelSecondary; the accent colours appear only as keys, swatches and on dark plates.
 
@@ -128,7 +144,7 @@ tools/harness/fn.sh shot <name> [wait_s]        # console screenshot, two in a r
 | `spot` | `--ef x 0.5 --ef z -2` | marker at head + (x, z), then [Move to marker] |
 | `reveal` | `[--ef t 0.5]` | reveal; t freezes the growth; t = 1 jumps to the result |
 | `yaw` | `--ef deg 30` | guess turn |
-| `drag_pose` | `--ei on 1 [--es wall 1]` | drag visuals (S06), snapped to the wall ahead |
+| `drag_pose` | `--ei on 1 [--es wall 1]` | a real drag (DragStarted / DragTo), `wall` = to 0.1 m from the wall ahead (no snap) |
 | `best` | `--es v seed / clear` | best results |
 | `lang` | `--es id zh / en` | language |
 | `mute` / `wrap` / `freeze` / `noscan` | `--ei on 1 / 0` | mute; wrap me; freeze plane-driven state changes; ignore detected planes |
@@ -179,7 +195,6 @@ mesh and rings, slider / handle / stick scaling, wall snap).
 - The true body has no second 1.01x shell; its shape reads through thin dark-teal latitude / longitude lines.
 - Coloured text (guess blue, true teal, amber) is replaced by labelPrimary text with coloured keys / a dark star
   capsule: the accents measured well under 3:1 on the glass (taste D13).
-- No haptic pulse on wall snap (a soft tick sound instead, muted with the rest).
 - Noto Sans SC is bundled whole (17 MB, from Fire Plan); APK 45 MB.
 
 ## Not verified

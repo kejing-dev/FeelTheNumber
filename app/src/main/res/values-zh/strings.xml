@@ -8,7 +8,7 @@
     <string name="hint_s03">捏住顶上的把手往上拉，拉到你觉得的大小，再点「揭晓」</string>
     <string name="hint_s04">扣扳机或捏合，把标记放在这里</string>
     <string name="hint_s05">松手就定下来</string>
-    <string name="hint_s06">拖到墙边会自动贴上去</string>
+    <string name="hint_s06">拖到哪里，松手就停在哪里</string>
     <string name="hint_s07">真实大小来了…</string>
     <string name="hint_s08">猜得怎么样？点「下一题」继续</string>
     <string name="hint_s09">它比你的房间还大：墙外还有一大截</string>
@@ -19,7 +19,7 @@
     <string name="hint_place_marker">先在地上放一个标记：手柄射线指地面扣扳机，或看着地面捏合；再点「移到标记处」</string>
     <string name="hint_marker_set">标记已放好：点「移到标记处」把它移过去</string>
     <string name="note_scanned">已用扫描到的房间</string>
-    <string name="note_no_ceiling">没识别到天花板：顶部不截断</string>
+    <string name="note_no_ceiling">没识别到天花板</string>
     <string name="joystick_hint">摇杆左右转动 · 上下变大变小</string>
 
     <string name="action_reveal">揭晓</string>
@@ -80,4 +80,6 @@
     <string name="room_use_scan">用扫描到的房间</string>
     <string name="room_shorter">减小</string>
     <string name="room_longer">增大</string>
+    <string name="action_recall_card">叫回问题卡</string>
+    <string name="moved_back">它太大，在你的猜测下面长会碰到你，所以往后放了一点。</string>
 </resources>

@@ -24,7 +24,7 @@ enum class Note { SCANNED_ROOM, NO_CEILING }
 data class Guess(
     val size: Float = Placement.START_SIZE_M,
     val yawDeg: Float = 0f,
-    /** Where it stands now: the floor (true) or the tray; only changes when a resize ends. */
+    /** Its base is on the floor (true) or lifted (tray = the lifted base); set by a drag release (10 cm hysteresis) or [Move to marker]. */
     val onFloor: Boolean = false,
     val tray: Vec3? = null,
     /**
@@ -35,7 +35,7 @@ data class Guess(
     val spot: Vec3? = null,
     val resizing: Boolean = false,
     val dragging: Boolean = false,
-    /** Wall snap engaged while dragging. */
+    /** Unused since v0.1.5 (no wall snap); kept for the dump format. */
     val snapped: Boolean = false,
     /** The user has touched the guess (S02 -> S03). */
     val touched: Boolean = false,
@@ -63,6 +63,8 @@ data class Reveal(
     val beforeWrap: Vec3? = null,
     /** The anchor the pair was put at (the marker it was moved to, before the clearance push). */
     val anchor: Vec3? = null,
+    /** The truth was moved back from below the guess to keep clear of the viewer (D14): the card says so. */
+    val movedBack: Boolean = false,
     val hidden: Boolean = false,
 )
 

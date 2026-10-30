@@ -54,6 +54,9 @@ internal fun FeelStage(state: FeelUiState, scene: FeelScene, onEvent: (FeelEvent
             AttachmentPanel(PanelSpec.TAG) {
                 PoolPanel(PanelSpec.TAG, scene) { inView -> SizeTag(state = state, filled = inView) }
             }
+            AttachmentPanel(PanelSpec.RECALL) {
+                PoolPanel(PanelSpec.RECALL, scene) { inView -> RecallPill(filled = inView) { scene.recallCard() } }
+            }
         },
         update = { _, attachments ->
             @Suppress("UNUSED_EXPRESSION") bindTick
