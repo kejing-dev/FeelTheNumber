@@ -326,4 +326,20 @@ class FeelDomainTest {
         val clipped = Clip.body(big, room)
         assertTrue(clipped.boundsMax().z - clipped.boundsMin().z < 0.01f)
     }
+
+    /** v0.1.4 (user: 「拉那个球之后好像会掉下去」): a released base keeps its height; it is never pulled down or pushed. */
+    @Test
+    fun releasedBaseKeepsItsHeight() {
+        val floor = 0.4f
+        // high, low, far, near: the lift is exactly what the hand left
+        for (base in listOf(Vec3(0f, 2.1f, -1.5f), Vec3(0.3f, 0.9f, -1f), Vec3(-1f, 1.4f, -4f), Vec3(0f, 1.2f, -0.6f))) {
+            assertEquals(base.y - floor, Placement.liftOf(base, floor), 1e-6f)
+        }
+        // never below the floor; within 2 cm of it counts as standing on it
+        assertEquals(0f, Placement.liftOf(Vec3(0f, -0.3f, -2f), floor), 0f)
+        assertEquals(0f, Placement.liftOf(Vec3(0f, floor + 0.015f, -2f), floor), 0f)
+        // a body grows from its base: the base, and so the bottom, does not move with the size
+        val base = Vec3(0.5f, 1.4f, -2f)
+        for (size in listOf(0.25f, 1f, 3f)) assertEquals(base.y, Placement.center(base, size).y - size / 2f, 1e-6f)
+    }
 }

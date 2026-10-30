@@ -30,6 +30,14 @@ and [bring it to the marker]; otherwise the ball is right in front of me and blo
   listed one by one in `../spatial-app-factory/apps/feel-number/build/ui-audit.md`.
 - Debug `spot --ef x --ef z` now = a marker at head + (x, z), then [Move to marker].
 
+## v0.1.4 (2026-10-29): it stays where you leave it
+
+Headset feedback: "拉那个球之后好像会掉下去，保持球的位置". A resize no longer moves the guess (no tray -> floor drop on
+release, no clearance push while growing); a drag moves the base in 3D (it may stay in the air, never below the floor) and
+stays where let go; a new question / guess again starts where the last guess was left; room updates only follow the floor
+height; the truth grows from the guess's base height. [Move to marker] is the only placement that moves it (onto the
+marker; small bodies on the stand 1 m above). Where the drop came from: ui-audit.md, v0.1.4 section.
+
 ## v0.1.3 (2026-10-29): no room clipping at all
 
 Headset feedback: "点了 reveal 之后就变 2D 了，不用 cut by the room". Every body (guess, the 8 growth levels, the final truth,

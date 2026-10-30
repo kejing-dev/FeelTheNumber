@@ -765,8 +765,9 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
                     when {
                         s.phase == Phase.GUESS && s.page == Page.MAIN && (gv.isHandle(target) || (gv.isBody(target) && s.guess.size < 0.1f)) ->
                             Drag(DragMode.RESIZE, s.guess.size, null, 1f).also { sink(FeelEvent.ResizeStarted) }
-                        s.phase == Phase.GUESS && s.page == Page.MAIN && gv.isBody(target) && s.guess.onFloor ->
-                            Drag(DragMode.MOVE_PENDING, s.guess.size, s.guess.spot, gainFor(s.guess.spot))
+                        s.phase == Phase.GUESS && s.page == Page.MAIN && gv.isBody(target) ->
+                            // v0.1.4: the drag starts from the body's base (on the floor or in the air) and moves it in 3D
+                            Drag(DragMode.MOVE_PENDING, s.guess.size, (if (s.guess.onFloor) s.guess.spot else s.guess.tray) ?: s.guess.spot, gainFor(s.guess.spot))
                         s.phase == Phase.RESULT && target === truth?.target ->
                             Drag(DragMode.PAIR, 0f, s.reveal?.spot, gainFor(s.reveal?.spot))
                         s.page == Page.ROOM && target === floorCatcher ->
@@ -789,7 +790,10 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
                             sink(FeelEvent.DragStarted)
                         }
                     }
-                    DragMode.MOVE -> d.startSpot?.let { sp -> sink(FeelEvent.DragTo(sp + Vec3(d.hand.x, 0f, d.hand.z) * d.gain)) }
+                    DragMode.MOVE -> d.startSpot?.let { sp ->
+                        // up / down follows the hand at a gentler gain than across (an arm moves less up than out)
+                        sink(FeelEvent.DragTo(sp + Vec3(d.hand.x * d.gain, d.hand.y * minOf(d.gain, 2f), d.hand.z * d.gain)))
+                    }
                     DragMode.PAIR -> {
                         val step = (d.hand - d.prevHand)
                         sink(FeelEvent.PairMoved(Vec3(step.x, 0f, step.z) * d.gain))

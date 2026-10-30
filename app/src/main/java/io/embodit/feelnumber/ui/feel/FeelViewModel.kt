@@ -121,7 +121,7 @@ class FeelViewModel(private val repo: FeelRepository) : ViewModel() {
                 resizeTo(Placement.sizeOfSlider(e.t))
             }
             FeelEvent.SliderEnded -> if (s.phase == Phase.GUESS) endResize()
-            FeelEvent.DragStarted -> if (s.phase == Phase.GUESS && s.guess.onFloor) set(s.copy(guess = s.guess.copy(dragging = true, touched = true)))
+            FeelEvent.DragStarted -> if (s.phase == Phase.GUESS) set(s.copy(guess = s.guess.copy(dragging = true, touched = true)))
             is FeelEvent.DragTo -> if (s.phase == Phase.GUESS && s.guess.dragging) dragTo(e.spot)
             FeelEvent.DragEnded -> if (s.guess.dragging) endDrag()
             is FeelEvent.Turn -> {
@@ -288,7 +288,13 @@ class FeelViewModel(private val repo: FeelRepository) : ViewModel() {
             val g = s.guess
             // the spots stand on the (new) floor
             val user = g.userSpot?.let { Vec3(it.x, room.floorY, it.z) }
-            s = s.copy(guess = placed(g.copy(userSpot = user), s), marker = s.marker?.let { Vec3(it.x, room.floorY, it.z) })
+            // v0.1.4: a room update (the scan refines it twice a second) only follows the floor height; it never re-places
+            // the guess (it used to re-run the clearance push and put the tray back to 1.0 m)
+            val dy = g.spot?.let { room.floorY - it.y } ?: 0f
+            s = s.copy(
+                guess = g.copy(userSpot = user, spot = g.spot?.let { Vec3(it.x, room.floorY, it.z) }, tray = g.tray?.let { Vec3(it.x, it.y + dy, it.z) }),
+                marker = s.marker?.let { Vec3(it.x, room.floorY, it.z) },
+            )
         }
         val r = s.reveal
         if (room != null && r != null) {
@@ -322,10 +328,15 @@ class FeelViewModel(private val repo: FeelRepository) : ViewModel() {
             return
         }
         // the anchor stays where it is for the whole session (taste D1): next / again / deck never move it
-        val user = s.guess.userSpot?.let { Vec3(it.x, room.floorY, it.z) } ?: defaultAnchor(room)
-        val g = Guess(userSpot = user, touched = s.guess.touched && s.questionId != id)
+        val prev = s.guess
+        val user = prev.userSpot?.let { Vec3(it.x, room.floorY, it.z) } ?: defaultAnchor(room)
+        val g = Guess(userSpot = user, touched = prev.touched && s.questionId != id)
         val next = s.copy(questionId = id, page = page, phase = Phase.GUESS, reveal = null, guess = g, aimingFloor = false)
-        val placed = placed(g, next, atAnchor = true)
+        // v0.1.4 ("放在哪就在哪"): a new question / guess again starts exactly where the last guess was left (same spot,
+        // same height); only the very first one is put at the default anchor
+        val placed =
+            if (prev.spot != null) g.copy(spot = Vec3(prev.spot.x, room.floorY, prev.spot.z), onFloor = prev.onFloor, tray = prev.tray, yawDeg = prev.yawDeg)
+            else placed(g, next, atAnchor = true)
         set(next.copy(guess = placed))
         FeelLog.i("QUESTION $id true=${FeelLog.f(QuestionBank.get(id).sizeM, 3)} tray=${FeelLog.pos(placed.tray)} anchor=${FeelLog.pos(user)}")
     }
@@ -378,7 +389,8 @@ class FeelViewModel(private val repo: FeelRepository) : ViewModel() {
         val anchor = Vec3(m.x, room.floorY, m.z)
         when (s.phase) {
             Phase.GUESS -> {
-                val g = placed(s.guess.copy(userSpot = anchor, snapped = false, touched = true), s, atAnchor = true)
+                // the one placement that moves the guess: it lands on the marker (small bodies on the stand above it)
+                val g = placed(s.guess.copy(userSpot = anchor, snapped = false, touched = true, onFloor = Placement.onFloor(s.guess.size)), s, atAnchor = true)
                 set(s.copy(guess = g))
                 FeelLog.i("MARKER bring guess anchor=${FeelLog.pos(anchor)} spot=${FeelLog.pos(g.spot)}")
             }
@@ -398,15 +410,14 @@ class FeelViewModel(private val repo: FeelRepository) : ViewModel() {
 
     private fun resizeTo(size: Float) {
         val s = _state.value
-        val g = s.guess.copy(size = Placement.clampSize(size), touched = true)
-        // while resizing the body does not change place; a floor body backs away as it grows (clearance rule)
-        val spot = if (g.onFloor) actual(g, s) else g.spot
-        set(s.copy(guess = g.copy(spot = spot, snapped = if (spot != g.spot) false else g.snapped)))
+        // v0.1.4: a resize grows the body in place (its base stays put): no clearance push, no tray <-> floor move
+        set(s.copy(guess = s.guess.copy(size = Placement.clampSize(size), touched = true)))
     }
 
     private fun endResize() {
         val s = _state.value
-        val g = placed(s.guess.copy(resizing = false, onFloor = Placement.onFloor(s.guess.size)), s)
+        // v0.1.4 (user: 「拉那个球之后好像会掉下去」): letting go no longer drops the body from the tray to the floor
+        val g = s.guess.copy(resizing = false)
         set(s.copy(guess = g))
         FeelLog.i("GUESS size=${FeelLog.f(g.size, 3)} floor=${g.onFloor} spot=${FeelLog.pos(g.spot)}")
     }
@@ -422,10 +433,12 @@ class FeelViewModel(private val repo: FeelRepository) : ViewModel() {
         FeelLog.i("MARKER set at=${FeelLog.pos(m)}")
     }
 
+    /** A drag moves the body's base in 3D (v0.1.4): it may be left in the air; it never goes below the floor. */
     private fun dragTo(raw: Vec3) {
         val s = _state.value
         val room = s.room ?: return
         val g = s.guess
+        val lift = Placement.liftOf(raw, room.floorY)
         var spot = Vec3(raw.x, room.floorY, raw.z)
         var yaw = g.yawDeg
         var snapped = g.snapped
@@ -439,7 +452,8 @@ class FeelViewModel(private val repo: FeelRepository) : ViewModel() {
         } else {
             snapped = false
         }
-        set(s.copy(guess = g.copy(spot = spot, userSpot = spot, yawDeg = yaw, snapped = snapped)))
+        val onFloor = lift <= Placement.ON_FLOOR_M
+        set(s.copy(guess = g.copy(spot = spot, userSpot = spot, yawDeg = yaw, snapped = snapped, onFloor = onFloor, tray = if (onFloor) null else Vec3(spot.x, room.floorY + lift, spot.z))))
     }
 
     private fun endDrag() {
@@ -447,7 +461,7 @@ class FeelViewModel(private val repo: FeelRepository) : ViewModel() {
         val g = s.guess.copy(dragging = false)
         // v0.1.2: the guess stays exactly where it was let go (on the floor below the hand); nothing pushes it away
         val at = g.spot
-        set(s.copy(guess = g.copy(spot = at, userSpot = at, tray = at?.let { Placement.trayAt(it) })))
+        set(s.copy(guess = g.copy(spot = at, userSpot = at)))
         FeelLog.i("DRAG end spot=${FeelLog.pos(at)} snapped=${g.snapped}")
     }
 
@@ -465,20 +479,14 @@ class FeelViewModel(private val repo: FeelRepository) : ViewModel() {
         val guessVolume = Geometry.volumeOf(q.shape, g.size.toDouble())
         val r = Scoring.ratio(guessVolume, q.volumeM3)
         val stars = Scoring.stars(r)
-        val onTray = trueSize < Placement.FLOOR_MIN_M
-        val tray = g.tray ?: g.spot?.let { Placement.trayAt(it) } ?: return
-        val spot: Vec3
-        val guessBase: Vec3
-        if (onTray) {
-            spot = tray
-            // a big guess stays on the floor (sliding it to the tray would cover the viewer); the side view shows both
-            guessBase = if (g.size >= 0.6f) (g.spot ?: tray) else tray
-        } else {
-            val from = (if (g.onFloor) g.spot else g.userSpot) ?: return
-            // the reveal grows where the guess stands (D14 clearance only); the cone is handled by fading (v0.1.2)
-            spot = Placement.revealSpot(from, head, q.shape, trueSize, room)
-            guessBase = spot
-        }
+        // v0.1.4: the truth grows where the guess stands, from the same base height (floor or in the air); only the
+        // D14 clearance moves it sideways when it would reach the viewer. The guess wireframe stays on the same axis.
+        val floorSpot = g.spot ?: return
+        val baseLift = if (g.onFloor) 0f else ((g.tray?.y ?: room.floorY) - room.floorY)
+        val onTray = baseLift > Placement.ON_FLOOR_M
+        val pushed = Placement.revealSpot(floorSpot, head, q.shape, trueSize, room)
+        val spot = Vec3(pushed.x, room.floorY + baseLift, pushed.z)
+        val guessBase = spot
         val best = s.best[q.id]
         val newBest = best == null || stars > best.stars || (stars == best.stars && kotlin.math.abs(kotlin.math.ln(r)) < kotlin.math.abs(kotlin.math.ln(best.ratio)))
         val bests = if (newBest) s.best + (q.id to Best(stars, r)) else s.best
@@ -551,8 +559,9 @@ class FeelViewModel(private val repo: FeelRepository) : ViewModel() {
             s = _state.value
         }
         if (s.phase != Phase.GUESS) return
-        val g = placed(s.guess.copy(size = Placement.clampSize(size), onFloor = Placement.onFloor(size), resizing = false, touched = true), s)
-        set(s.copy(guess = g))
+        val onFloor = Placement.onFloor(size)
+        val g = s.guess.copy(size = Placement.clampSize(size), onFloor = onFloor, resizing = false, touched = true)
+        set(s.copy(guess = g.copy(tray = if (onFloor) null else g.spot?.let { Placement.trayAt(it) })))
         FeelLog.i("GUESS debug size=${FeelLog.f(size, 3)} floor=${g.onFloor} spot=${FeelLog.pos(_state.value.guess.spot)}")
     }
 

@@ -77,6 +77,12 @@ object Placement {
 
     fun onFloor(size: Float): Boolean = size >= FLOOR_MIN_M
 
+    /** A base within this of the floor counts as standing on it. */
+    const val ON_FLOOR_M = 0.02f
+
+    /** Height of a released base above the floor (v0.1.4: kept as released; never below the floor). */
+    fun liftOf(base: Vec3, floorY: Float): Float = (base.y - floorY).coerceAtLeast(0f).let { if (it <= ON_FLOOR_M) 0f else it }
+
     /** The tray point above a floor [spot] (the tray ring's centre; a body there sits on it). */
     fun trayAt(spot: Vec3): Vec3 = Vec3(spot.x, spot.y + TRAY_HEIGHT_M, spot.z)
 
