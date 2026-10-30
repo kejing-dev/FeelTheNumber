@@ -303,4 +303,27 @@ class FeelDomainTest {
         val clear = Body(Shape.SPHERE, Placement.center(Vec3(1.2f, 0f, -1f), 0.8f), 0.8f)
         assertFalse(Placement.blocksPanel(eye, card, 0.315f, clear.center, 0.4f))
     }
+
+    /**
+     * v0.1.3 (user: 「点了 reveal 之后就变 2D 了，不用 cut by the room」): the scene builds every body with room = null.
+     * Small, medium and bigger-than-the-room bodies stay whole and round: every vertex at R from the centre, full extent
+     * on all three axes. The clipped variant of the same big ball is what went flat.
+     */
+    @Test
+    fun revealBodiesAreWholeAndThreeDimensional() {
+        val room = RoomBox(Vec3.ZERO, 0f, width = 4f, length = 5f, height = 2.6f, floorY = 0f)
+        for ((id, spot) in listOf("kg-water" to Vec3(0f, 0f, -2f), "co2-1kg" to Vec3(0f, 0f, -2f), "co2-1t" to Vec3(0f, 0f, -6f))) {
+            val q = QuestionBank.get(id)
+            val b = Body(q.shape, Placement.center(spot, q.sizeM), q.sizeM)
+            val mesh = Clip.body(b, null)
+            val lo = mesh.boundsMin()
+            val hi = mesh.boundsMax()
+            for (extent in listOf(hi.x - lo.x, hi.y - lo.y, hi.z - lo.z)) assertEquals(id, q.sizeM, extent, q.sizeM * 0.01f)
+            if (q.shape == Shape.SPHERE) assertTrue(id, mesh.positions.all { kotlin.math.abs(it.distanceTo(b.center) - b.half) < 1e-3f * maxOf(1f, b.half) })
+        }
+        // the 10 m ball clipped by a 5 m room: its depth collapses onto the walls (the old "2D" look)
+        val big = Body(Shape.SPHERE, Placement.center(Vec3(0f, 0f, -9f), 10.07f), 10.07f) // pushed past the front wall
+        val clipped = Clip.body(big, room)
+        assertTrue(clipped.boundsMax().z - clipped.boundsMin().z < 0.01f)
+    }
 }

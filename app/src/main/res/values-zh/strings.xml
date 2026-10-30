@@ -52,12 +52,12 @@
     <string name="stars_1">有点远</string>
     <string name="stars_0">差得远</string>
     <string name="lesson">直径差 26%%，体积就差一倍</string>
-    <string name="cut_line">装不下：屋里只看得到 %1$d%%</string>
-    <string name="inside_line">你站在它里面 · 屋里只看得到 %1$d%%</string>
+    <string name="cut_line">比你的房间还大：只有 %1$d%% 装得进屋里</string>
+    <string name="inside_line">你站在它里面 · 只有 %1$d%% 装得进屋里</string>
     <string name="progress_line">本组 %1$d/%2$d · ★★★ %3$d</string>
     <string name="source_line">来源：%1$s</string>
     <string name="side_you">你</string>
-    <string name="tag_cut">被房间切开</string>
+    <string name="tag_cut">比房间还大</string>
     <string name="tag_volume">%1$s · %2$s m³</string>
 
     <string name="deck_title">题库</string>

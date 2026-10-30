@@ -56,12 +56,12 @@
     <string name="stars_1">A bit off</string>
     <string name="stars_0">Way off</string>
     <string name="lesson">26%% wider = twice the volume</string>
-    <string name="cut_line">Too big: only %1$d%% fits in your room</string>
+    <string name="cut_line">Bigger than your room: only %1$d%% of it fits inside</string>
     <string name="inside_line">You\'re inside it · only %1$d%% fits in your room</string>
     <string name="progress_line">This set %1$d/%2$d · ★★★ %3$d</string>
     <string name="source_line">Source: %1$s</string>
     <string name="side_you">you</string>
-    <string name="tag_cut">Cut by the room</string>
+    <string name="tag_cut">Bigger than your room</string>
     <string name="tag_volume">%1$s · %2$s m³</string>
 
     <!-- deck -->

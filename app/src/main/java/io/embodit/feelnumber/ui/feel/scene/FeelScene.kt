@@ -313,7 +313,8 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
                 }
             }
             // a body that pokes out of the room gets the clipped mesh once it stands still
-            val cut = room != null && !state.guess.resizing && !state.guess.dragging && Clip.clipsGuess(room, body)
+            // v0.1.3 (user: 「不用 cut by the room」): no body is ever clipped by the room; bigger than the room = drawn whole
+            val cut = false
             val ck = if (cut) "$key:$room" else ""
             if (ck != clipKey) {
                 clipKey = ck
@@ -387,7 +388,7 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
             inside = false
             wireFrom = state.guessBody?.center ?: wb.center
             wireStartMs = SystemClock.elapsedRealtime()
-            t.wire.show(MeshFactory.ribbons(Clip.wire(wb, room), (wb.size * 0.006f).coerceIn(0.004f, 0.025f)) { p -> (p - wb.center).normalized() })
+            t.wire.show(MeshFactory.ribbons(Clip.wire(wb, null), (wb.size * 0.006f).coerceIn(0.004f, 0.025f)) { p -> (p - wb.center).normalized() })
             t.wire.setOffset((wireFrom ?: wb.center) - wb.center)
             buildLevels(tb, room)
         }
@@ -411,7 +412,7 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
                         (1..LEVELS).map { k ->
                             val s = tb.size * k / LEVELS
                             val b = Body(tb.shape, Vec3(tb.center.x, tb.bottomY + s / 2f, tb.center.z), s, tb.yawDeg)
-                            Clip.body(b, room) to MeshFactory.segments(Clip.rings(room, b), RING_W)
+                            Clip.body(b, null) to MeshData(emptyList(), emptyList(), emptyList())
                         }
                     }
                 val made = ArrayList<MeshResource>()
@@ -428,14 +429,15 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
 
     private fun showFinal(tb: Body, wb: Body, room: RoomBox, hidden: Boolean, rebuildWire: Boolean) {
         val t = truth ?: return
-        val data = Clip.body(tb, room)
+        val data = Clip.body(tb, null)
         if (hidden) t.outer.hide() else t.outer.show(data)
-        t.lines.show(MeshFactory.ribbons(Clip.wire(tb, room), (tb.size * 0.003f).coerceIn(0.002f, 0.015f)) { p -> (p - tb.center).normalized() })
+        t.lines.show(MeshFactory.ribbons(Clip.wire(tb, null), (tb.size * 0.003f).coerceIn(0.002f, 0.015f)) { p -> (p - tb.center).normalized() })
         if (hidden) t.lines.hide()
-        t.rings.show(MeshFactory.segments(Clip.rings(room, tb), RING_W))
+        // no cut rings: nothing is cut any more (v0.1.3)
+        t.rings.hide()
         if (inside && !hidden) t.inner.show(data.reversed()) else t.inner.hide()
         if (rebuildWire) {
-            t.wire.show(MeshFactory.ribbons(Clip.wire(wb, room), (wb.size * 0.006f).coerceIn(0.004f, 0.025f)) { p -> (p - wb.center).normalized() })
+            t.wire.show(MeshFactory.ribbons(Clip.wire(wb, null), (wb.size * 0.006f).coerceIn(0.004f, 0.025f)) { p -> (p - wb.center).normalized() })
             t.wire.setOffset(Vec3.ZERO)
             wireFrom = null
         }
@@ -543,7 +545,7 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
             val room = ui.room
             val t = truth
             if (room != null && t != null && levelShown == LEVELS) {
-                if (inside && ui.reveal?.hidden != true) t.inner.show(Clip.body(tb, room).reversed()) else t.inner.hide()
+                if (inside && ui.reveal?.hidden != true) t.inner.show(Clip.body(tb, null).reversed()) else t.inner.hide()
             }
             sink(FeelEvent.InsideChanged(now))
         }

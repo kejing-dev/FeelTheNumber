@@ -30,6 +30,14 @@ and [bring it to the marker]; otherwise the ball is right in front of me and blo
   listed one by one in `../spatial-app-factory/apps/feel-number/build/ui-audit.md`.
 - Debug `spot --ef x --ef z` now = a marker at head + (x, z), then [Move to marker].
 
+## v0.1.3 (2026-10-29): no room clipping at all
+
+Headset feedback: "点了 reveal 之后就变 2D 了，不用 cut by the room". Every body (guess, the 8 growth levels, the final truth,
+its lines, the guess wireframe, the inner surface) is now built with `room = null`: nothing is clipped or flattened, a body
+bigger than the room is drawn whole (through the walls). No cut rings. "Doesn't fit" stays as text only (result card
+"Bigger than your room: only X % fits inside", size-tag chip "Bigger than your room"). Why the first reveal looked fine and
+later ones went flat: see the v0.1.3 section of `../spatial-app-factory/apps/feel-number/build/ui-audit.md`.
+
 ## v0.1.2 (2026-10-28): released ball went flat against the wall
 
 Headset feedback on v0.1.1: "松开后球怎么直接变成 2D 的还贴到边上". Cause: on every release (resize end) the v0.1.1
