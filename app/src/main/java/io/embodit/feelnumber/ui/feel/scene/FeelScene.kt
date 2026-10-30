@@ -45,8 +45,6 @@ import io.embodit.feelnumber.ui.feel.debug.FeelProbe
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.sin
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -333,7 +331,9 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
             gv.showTray(if (!state.guess.onFloor) state.guess.tray else null, state.floorY)
             gv.showFloorMark(state.guess.spot)
         } else {
-            gv.showTray(null, state.floorY)
+            // D1 (v0.1.6): a revealed pair left in the air keeps the stand under its shared base
+            val r = state.reveal
+            gv.showTray(if (r != null && r.lifted && !r.hidden) r.base else null, state.floorY)
             gv.showFloorMark(null)
             if (clipKey.isNotEmpty()) {
                 clipKey = ""
@@ -606,10 +606,11 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
         if (!hasHead) return
         val slot = rig[PanelSpec.CARD] ?: return
         if (cardPos == null) {
-            val (p, _) = cardPose(yawOf(head.forward))
-            setCard(p, "start")
+            // D9: the designed pose from the head's LEVEL heading only (placeUpright drops pitch and roll)
+            setCard(Placement.placeUpright(head.position, head.forward, CARD_DISTANCE_M, CARD_DOWN_DEG, CARD_LEFT_DEG).position, "start")
         }
         val p = cardPos ?: return
+        // the card is always vertical: a rotation about the vertical axis only (D9)
         slot.place(p, Quat4.axisAngle(Vec3.UP, cardYaw), PanelSpec.CARD_SCALE)
         placeGrip(p)
         // the recall pill: only while the card is out of view (more than 50 degrees off the view, or farther than 3 m)
@@ -622,21 +623,22 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
         @Suppress("UNUSED_EXPRESSION") now
     }
 
-    /** Puts the card at [p], turned to the viewer once; reports it (default anchor and view cone follow it). */
+    /**
+     * Puts the card at [p], turned to the viewer once about the vertical axis only (D9: never the head's pitch / roll);
+     * reports it (default anchor and view cone follow it).
+     */
     private fun setCard(p: Vec3, why: String) {
         cardPos = p
         val to = Vec3(head.position.x - p.x, 0f, head.position.z - p.z)
         cardYaw = atan2(to.x.toDouble(), to.z.toDouble()).toFloat()
         sink(FeelEvent.CardAt(p))
-        FeelLog.i("CARD $why at=${FeelLog.pos(p)}")
+        FeelLog.i("CARD $why at=${FeelLog.pos(p)} yaw=${FeelLog.f(Math.toDegrees(cardYaw.toDouble()).toFloat(), 1)}")
     }
 
-    /** [Bring the card back]: straight ahead, 15 degrees below the view, 1.0 m (taste D21). */
+    /** [Bring the card back]: straight ahead of the level heading, 15 degrees below the eye line, 1.0 m (taste D21 / D9). */
     fun recallCard() {
         if (!hasHead) return
-        val f = RoomBox.level(head.forward)
-        val down = Math.toRadians(RECALL_DOWN_DEG.toDouble())
-        setCard(head.position + f * (CARD_DISTANCE_M * cos(down)).toFloat() - Vec3(0f, (CARD_DISTANCE_M * sin(down)).toFloat(), 0f), "recall")
+        setCard(Placement.placeUpright(head.position, head.forward, CARD_DISTANCE_M, RECALL_DOWN_DEG).position, "recall")
     }
 
     /** The grip bar 4 cm under the card's bottom edge (drag it to move the card). */
@@ -648,27 +650,7 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
         grip.enabled = true
     }
 
-    /** Designed card pose for a head heading [yaw] (radians, 0 = -Z): left and down of the view. */
-    private fun cardPose(yaw: Float): Pair<Vec3, Float> {
-        val a = yaw + Math.toRadians(CARD_LEFT_DEG.toDouble()).toFloat()
-        val down = Math.toRadians(CARD_DOWN_DEG.toDouble())
-        val flat = (CARD_DISTANCE_M * cos(down)).toFloat()
-        val dir = Vec3(-sin(a), 0f, -cos(a))
-        val p = head.position + dir * flat - Vec3(0f, (CARD_DISTANCE_M * sin(down)).toFloat(), 0f)
-        return p to yaw
-    }
-
-    /** Heading of a direction, radians: 0 = -Z, positive = turning left (counter-clockwise from above). */
-    private fun yawOf(v: Vec3): Float = atan2(-v.x.toDouble(), -v.z.toDouble()).toFloat()
-
-    private fun angleDiff(a: Float, b: Float): Float {
-        var d = a - b
-        while (d > Math.PI) d -= (2 * Math.PI).toFloat()
-        while (d < -Math.PI) d += (2 * Math.PI).toFloat()
-        return d
-    }
-
-    /** Size tag above the truth (or under the ceiling), constant visual size (0.45 - 6 m). */
+    /** Size tag above the truth (or under the ceiling), constant visual size (0.45 - 6 m); upright, turned about the vertical only. */
     private fun placeTag(rig: PanelRig) {
         val r = ui.reveal ?: return
         val tb = ui.trueBody ?: return
@@ -789,7 +771,7 @@ class FeelScene(private val sink: (FeelEvent) -> Unit) : FeelProbe.SceneProbe {
                             // v0.1.4: the drag starts from the body's base (on the floor or in the air) and moves it in 3D
                             Drag(DragMode.MOVE_PENDING, s.guess.size, (if (s.guess.onFloor) s.guess.spot else s.guess.tray) ?: s.guess.spot, gainFor(s.guess.spot))
                         s.phase == Phase.RESULT && target === truth?.target ->
-                            Drag(DragMode.PAIR, 0f, s.reveal?.spot, gainFor(s.reveal?.spot))
+                            Drag(DragMode.PAIR, 0f, s.reveal?.base, gainFor(s.reveal?.base))
                         s.page == Page.ROOM && target === floorCatcher ->
                             Drag(DragMode.ROOM, 0f, stage, gainFor(stage))
                         target === cardGrip && cardPos != null ->

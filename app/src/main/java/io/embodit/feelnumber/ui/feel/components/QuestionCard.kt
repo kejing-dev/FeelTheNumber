@@ -73,13 +73,14 @@ internal fun QuestionCard(state: FeelUiState, filled: Boolean, onEvent: (FeelEve
     // rebuilt after every change of page / state / question / note / language (black-block guard, see Glass)
     // (S04 - S06 count as S03: a rebuild must not cut a slider drag short)
     val stateKey = state.stateId.replace(Regex("S0[456]"), "S03")
-    val refresh = listOf(filled, state.page, stateKey, state.questionId, state.note, state.reveal?.stars, state.reveal?.cut, state.reveal?.hidden, state.reveal?.wrapped)
+    val refresh = listOf(filled, state.page, stateKey, state.questionId, state.note, state.reveal?.stars, state.reveal?.cut, state.reveal?.hidden, state.reveal?.wrapped, state.exitAsked)
     Glass(width = CardW, height = CardH, padding = 20.dp, refreshKey = refresh) {
         if (!filled) return@Glass
         when (state.page) {
             Page.DECK -> DeckPage(state, onEvent)
             Page.ABOUT -> AboutPage(state, onEvent)
             Page.ROOM -> RoomPage(state, onEvent)
+            Page.SETTINGS -> SettingsPage(state, onEvent)
             Page.MAIN -> if (state.showsResult) ResultPage(state, onEvent) else GuessPage(state, onEvent)
         }
     }
@@ -276,7 +277,7 @@ private fun ColumnScope.ResultPage(state: FeelUiState, onEvent: (FeelEvent) -> U
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         WordButton(name = "to_marker", text = rs(R.string.action_to_marker), onClick = { onEvent(FeelEvent.BringToMarker) }, modifier = Modifier.weight(1.3f), enabled = done && state.marker != null && !state.atMarker, minWidth = 0.dp)
         WordButton(name = "hide", text = rs(if (r.hidden) R.string.action_show else R.string.action_hide), onClick = { onEvent(FeelEvent.ToggleHidden) }, modifier = Modifier.weight(1f), enabled = done, minWidth = 0.dp)
-        if (!r.onTray && r.trueSize >= Placement.WRAP_MIN_M) {
+        if (r.trueSize >= Placement.WRAP_MIN_M) {
             WordButton(name = "wrap", text = rs(if (r.wrapped) R.string.action_unwrap else R.string.action_wrap), onClick = { onEvent(FeelEvent.ToggleWrap) }, modifier = Modifier.weight(1f), enabled = done, minWidth = 0.dp)
         }
     }
@@ -440,6 +441,64 @@ private fun ColumnScope.DeckPage(state: FeelUiState, onEvent: (FeelEvent) -> Uni
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         WordButton(name = "deck_room", text = rs(R.string.action_room), onClick = { onEvent(FeelEvent.OpenRoom) }, modifier = Modifier.weight(1f), minWidth = 0.dp, iconRes = R.drawable.ic_room)
         WordButton(name = "deck_about", text = rs(R.string.action_about), onClick = { onEvent(FeelEvent.OpenAbout) }, modifier = Modifier.weight(1f), minWidth = 0.dp, iconRes = R.drawable.ic_info)
+        WordButton(name = "deck_settings", text = rs(R.string.action_settings), onClick = { onEvent(FeelEvent.OpenSettings) }, modifier = Modifier.weight(1f), minWidth = 0.dp, iconRes = R.drawable.ic_settings)
+    }
+}
+
+// -------------------------------------------------------------------------------------------------
+// settings (S15) and quit confirm (S16), taste D26
+// -------------------------------------------------------------------------------------------------
+
+/**
+ * Settings: language and sound as 48 dp rows, [Room] / [About] shortcuts, and [Quit] at the very bottom. The first
+ * press opens a confirm row in place ("Quit Feel the Number?" [Cancel] [Quit]); only the second press quits.
+ * Every control is 48 dp high (taste B19).
+ */
+@Composable
+private fun ColumnScope.SettingsPage(state: FeelUiState, onEvent: (FeelEvent) -> Unit) {
+    TitleRow(
+        title = rs(R.string.settings_title),
+        leading = { Key(name = "settings_back", iconRes = R.drawable.ic_back, description = rs(R.string.action_back), width = 48.dp) { onEvent(FeelEvent.BackToDeck) } },
+    )
+    SettingRow(rs(R.string.setting_language)) { LangSegment(state, onEvent) }
+    SettingRow(rs(R.string.setting_sound)) {
+        SegmentControl(modifier = Modifier.width(140.dp).height(KeyHeight), backgroundColor = PicoTheme.colorScheme.fillTertiary) {
+            listOf(false to rs(R.string.setting_sound_on), true to rs(R.string.setting_sound_off)).forEach { (muted, label) ->
+                val onClick = { if (state.muted != muted) onEvent(FeelEvent.ToggleMute) }
+                SegmentItem(
+                    selected = state.muted == muted,
+                    onClick = onClick,
+                    modifier = Modifier.width(66.dp).fillMaxHeight().probe(if (muted) "sound_off" else "sound_on", onClick),
+                    textStyle = FeelType.label,
+                    colors = selectedColors(),
+                    title = { Text(text = label, maxLines = 1) },
+                )
+            }
+        }
+    }
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        WordButton(name = "settings_room", text = rs(R.string.action_room), onClick = { onEvent(FeelEvent.OpenRoom) }, modifier = Modifier.weight(1f), minWidth = 0.dp, iconRes = R.drawable.ic_room)
+        WordButton(name = "settings_about", text = rs(R.string.action_about), onClick = { onEvent(FeelEvent.OpenAbout) }, modifier = Modifier.weight(1f), minWidth = 0.dp, iconRes = R.drawable.ic_info)
+    }
+    Spacer(modifier = Modifier.weight(1f))
+    if (state.exitAsked) {
+        Text(text = rs(R.string.exit_confirm_title), style = FeelType.title, color = PicoTheme.colorScheme.labelPrimary, maxLines = 1, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+        Text(text = rs(R.string.exit_confirm_body), style = FeelType.body, color = PicoTheme.colorScheme.labelPrimary, maxLines = 2, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            WordButton(name = "exit_cancel", text = rs(R.string.action_cancel), onClick = { onEvent(FeelEvent.CancelExit) }, modifier = Modifier.weight(1f), minWidth = 0.dp)
+            WordButton(name = "exit_confirm", text = rs(R.string.action_exit_confirm), onClick = { onEvent(FeelEvent.ConfirmExit) }, modifier = Modifier.weight(1f), minWidth = 0.dp, danger = true, enabled = !state.exiting, iconRes = R.drawable.ic_exit)
+        }
+    } else {
+        WordButton(name = "exit", text = rs(R.string.action_exit), onClick = { onEvent(FeelEvent.AskExit) }, modifier = Modifier.fillMaxWidth(), minWidth = 0.dp, iconRes = R.drawable.ic_exit)
+    }
+}
+
+/** A settings row: label at the left, the control at the right, 48 dp high. */
+@Composable
+private fun SettingRow(label: String, control: @Composable () -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth().height(KeyHeight), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(text = label, style = FeelType.title, color = PicoTheme.colorScheme.labelPrimary, maxLines = 1, modifier = Modifier.weight(1f))
+        control()
     }
 }
 

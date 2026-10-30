@@ -31,9 +31,9 @@ import kotlin.math.abs
  *    ([Slot.widthFactor]) and draws itself stretched by the inverse.
  *
  * 1 dp of an attachment panel is 0.8 mm at scale 1. A room panel is turned towards the viewer once per
- * frame ([faceViewer]) by writing yaw and pitch into its holder (no `LookAtComponent`: with it the
- * pointer hits the unturned plane). Panels that the app places itself (the lazy-follow main panel)
- * are [Slot.autoFace] = false and get their pose through [Slot.place].
+ * frame ([faceViewer]) by writing its yaw into its holder (no `LookAtComponent`: with it the pointer hits
+ * the unturned plane; no pitch / roll: taste D9, panels stay vertical). Panels that the app places itself
+ * (the question card) are [Slot.autoFace] = false and get their pose through [Slot.place].
  */
 internal class PanelRig(private val stageRoot: Entity, private val onVisibility: (id: String, shown: Boolean) -> Unit) {
 
@@ -124,7 +124,8 @@ internal class PanelRig(private val stageRoot: Entity, private val onVisibility:
         }
 
         internal fun face(viewer: Vec3) {
-            val f = facingRule.facing(position, viewer, lastYaw)
+            // D9 (v0.1.6): yaw only - every room panel stays vertical, no pitch towards the viewer, no roll
+            val f = PanelFacing(facingRule.facing(position, viewer, lastYaw).yaw, 0f)
             if (faced && angle(f.yaw, facing.yaw) < FACE_STEP_RAD && abs(f.pitch - facing.pitch) < FACE_STEP_RAD) return
             facing = f
             faced = true

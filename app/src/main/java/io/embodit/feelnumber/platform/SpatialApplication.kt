@@ -8,6 +8,7 @@ class SpatialApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         FeelGraph.appContext = applicationContext
+        AppExit.install(this)
         launch(::mainApp)
     }
 }

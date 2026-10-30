@@ -178,26 +178,125 @@ class FeelPlacementStateTest {
         assertNear("base keeps its lift", Vec3(0.9f, newFloor + 0.6f, -2.3f), vm.g.tray)
     }
 
-    /** Critic B1 / M4: the truth stands on the floor at real size; the wireframe stays where the guess was left. */
+    /** The two revealed bodies: bottom centres within 1 cm, turns within 1 degree (taste D1, v0.1.6). */
+    private fun assertOneBase(msg: String, vm: FeelViewModel) {
+        val tb = vm.s.trueBody!!
+        val wb = vm.s.wireBody!!
+        val tBottom = Vec3(tb.center.x, tb.bottomY, tb.center.z)
+        val wBottom = Vec3(wb.center.x, wb.bottomY, wb.center.z)
+        assertTrue("$msg: bottoms $tBottom vs $wBottom", tBottom.distanceTo(wBottom) < 0.01f)
+        var d = kotlin.math.abs(tb.yawDeg - wb.yawDeg) % 360f
+        if (d > 180f) d = 360f - d
+        assertTrue("$msg: yaw ${tb.yawDeg} vs ${wb.yawDeg}", d < 1f)
+        assertEquals("$msg: real size", vm.s.question.sizeM, vm.s.reveal!!.trueSize, 1e-6f)
+    }
+
+    /**
+     * Taste D1 "揭晓 / 对比同一基准" (user on v0.1.5: 「绿色在下，蓝色在上，怎么不 consistent」): in the air, on the floor, right
+     * at a wall, turned - the truth grows from the guess's own base with the guess's own turn; both move together.
+     */
     @Test
-    fun truthStandsOnTheFloorWireStaysAtTheGuess() {
+    fun truthAndGuessShareOneBaseInEveryPose() {
+        data class Pose(val name: String, val base: Vec3, val yaw: Float)
+        val poses =
+            listOf(
+                Pose("in the air", Vec3(1.0f, floor + 0.6f, -2.5f), 0f),
+                Pose("on the floor", Vec3(-0.8f, floor + 0.05f, -2.2f), 0f),
+                Pose("at the wall", Vec3(1.9f, floor + 0.3f, -3.6f), 0f),
+                Pose("turned 37", Vec3(0.4f, floor + 1.1f, -2.0f), 37f),
+                Pose("turned -125 on the floor", Vec3(-1.2f, floor, -1.5f), -125f),
+            )
+        for (p in poses) {
+            val vm = session()
+            drag(vm, p.base)
+            if (p.yaw != 0f) vm.onEvent(FeelEvent.Turn(p.yaw - vm.g.yawDeg))
+            val guessBase = (if (vm.g.onFloor) vm.g.spot else vm.g.tray)!!
+            vm.onEvent(FeelEvent.Reveal)
+            val r = vm.s.reveal!!
+            assertOneBase("${p.name}: reveal", vm)
+            assertEquals("${p.name}: lifted iff the guess was", !vm.g.onFloor, r.lifted)
+            assertEquals("${p.name}: turn kept", vm.g.yawDeg, r.yawDeg, 1e-4f)
+            if (!r.movedBack) assertNear("${p.name}: the pair stands on the guess's base", guessBase, r.base)
+            else assertEquals("${p.name}: a shift keeps the height", guessBase.y, r.base.y, 1e-4f)
+            vm.onEvent(FeelEvent.RevealDone)
+            assertOneBase("${p.name}: result", vm)
+            // dragged as a pair, moved to a marker, wrapped and back: still one base
+            vm.onEvent(FeelEvent.PairMoved(Vec3(0.3f, 0f, -0.2f)))
+            assertOneBase("${p.name}: pair drag", vm)
+            assertEquals("${p.name}: pair drag keeps the lift", r.lift, vm.s.reveal!!.lift, 1e-6f)
+            vm.onEvent(FeelEvent.FloorTapped(Vec3(0.5f, floor, -2.8f)))
+            vm.onEvent(FeelEvent.BringToMarker)
+            assertOneBase("${p.name}: move to marker", vm)
+            assertEquals("${p.name}: marker keeps the lift", r.lift, vm.s.reveal!!.lift, 1e-6f)
+            vm.onEvent(FeelEvent.ScanChanged(RoomBox.around(eye, Vec3.AHEAD, 4.2f, 5.1f, 2.6f, floor - 0.05f)))
+            assertOneBase("${p.name}: room update", vm)
+            assertEquals("${p.name}: room update keeps the lift", floor - 0.05f + r.lift, vm.s.reveal!!.base.y, 1e-4f)
+        }
+    }
+
+    /** A truth that would reach the viewer moves back together with the guess (D14 within D1), and the card says so. */
+    @Test
+    fun aBigTruthMovesBackTogetherWithTheGuess() {
         val vm = session()
-        drag(vm, Vec3(1.0f, floor + 0.6f, -2.5f))
-        val base = vm.g.tray
+        vm.onEvent(FeelEvent.Pick("co2-1t")) // 10 m ball
+        drag(vm, Vec3(0f, floor + 0.5f, -1.5f))
+        val guessBase = vm.g.tray!!
         vm.onEvent(FeelEvent.Reveal)
         val r = vm.s.reveal!!
-        assertTrue(r.trueSize >= Placement.FLOOR_MIN_M)
-        assertFalse(r.onTray)
-        assertEquals("truth on the floor", floor, r.spot.y, 1e-4f)
-        assertEquals(vm.s.question.sizeM, r.trueSize, 1e-6f)
-        assertNear("wire at the guess base", base, r.guessBase)
-        // a body under 0.30 m reveals on the 1 m stand above the same spot
+        assertTrue(r.movedBack)
+        assertOneBase("shifted pair", vm)
+        assertEquals("same height as the guess", guessBase.y, r.base.y, 1e-4f)
+        assertTrue("further out than the guess", Vec3(r.base.x - eye.x, 0f, r.base.z - eye.z).length > Vec3(guessBase.x - eye.x, 0f, guessBase.z - eye.z).length + 1f)
+        // a small truth on a floor guess stays exactly there (no stand, no push)
         vm.onEvent(FeelEvent.RevealDone)
         vm.onEvent(FeelEvent.Pick("kg-gold"))
+        drag(vm, Vec3(0.6f, floor + 0.02f, -2.0f))
         vm.onEvent(FeelEvent.Reveal)
         val small = vm.s.reveal!!
-        assertTrue(small.onTray)
-        assertEquals(floor + Placement.TRAY_HEIGHT_M, small.spot.y, 1e-4f)
+        assertFalse(small.lifted)
+        assertFalse(small.movedBack)
+        assertNear("gold on the floor spot", Vec3(0.6f, floor, -2.0f), small.base)
+        assertOneBase("small pair", vm)
+    }
+
+    /** Taste D26: settings page, [Quit] asks once, [Cancel] closes the ask, the second press quits (effect to the screen). */
+    @Test
+    fun quitNeedsAConfirm() {
+        val vm = session()
+        vm.onEvent(FeelEvent.OpenDeck)
+        vm.onEvent(FeelEvent.OpenSettings)
+        assertEquals("S15", vm.s.stateId.substringBefore("+"))
+        // a confirm without the ask does nothing
+        vm.onEvent(FeelEvent.ConfirmExit)
+        assertFalse(vm.s.exiting)
+        vm.onEvent(FeelEvent.AskExit)
+        assertEquals("S16", vm.s.stateId.substringBefore("+"))
+        vm.onEvent(FeelEvent.CancelExit)
+        assertEquals("S15", vm.s.stateId.substringBefore("+"))
+        assertFalse(vm.s.exiting)
+        vm.onEvent(FeelEvent.AskExit)
+        vm.onEvent(FeelEvent.ConfirmExit)
+        assertTrue(vm.s.exiting)
+        // the debug goto reaches the same two states through the same events
+        val d = session()
+        d.onEvent(FeelEvent.DebugGoto("S16", null, null))
+        assertEquals("S16", d.s.stateId.substringBefore("+"))
+        assertFalse(d.s.exiting)
+    }
+
+    /** Debug `drag_pose --ef dy 0.6` is a real drag (M1): the guess is left in the air like a hand would leave it. */
+    @Test
+    fun debugDragOffsetIsARealDrag() {
+        val a = session()
+        val b = session()
+        val base = a.g.tray!!
+        drag(a, base + Vec3(0.2f, -0.3f, -0.1f))
+        b.onEvent(FeelEvent.DebugDragPose(true, false, Vec3(0.2f, -0.3f, -0.1f)))
+        b.onEvent(FeelEvent.DebugDragPose(false, false))
+        assertNear("same spot", a.g.spot, b.g.spot, 1e-4f)
+        assertNear("same base", a.g.tray, b.g.tray, 1e-4f)
+        assertEquals(a.g.onFloor, b.g.onFloor)
+        assertFalse(b.g.dragging)
     }
 
     /** Critic M1: the debug `guess` command goes through the same resize events (no onFloor shortcut). */

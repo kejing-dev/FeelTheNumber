@@ -72,6 +72,33 @@ for the cone (it only fades, and takes no taps while it sits between the eyes an
 was let go; the guess is clipped by the room only while its axis is inside the room (`Clip.clipsGuess`), so a guess
 outside is drawn whole. The reveal no longer pushes for the cone either (fade only). Unit tests 22 (5 new release cases).
 
+## v0.1.6 (2026-10-30): one base for the truth and the guess; settings + quit; upright panels
+
+Headset feedback on v0.1.5: "怎么有的 reveal 的绿色答案，和蓝色不同起点呢，绿色在下，蓝色在上，怎么不 consistent 呢". v0.1.5 put the
+truth on the floor while the guess wireframe stayed where the guess was left (in the air on its stand), so the two had
+different bases. Now (taste D1 "揭晓 / 对比同一基准"):
+- `Placement.pairPose` is the one anchor function of the reveal: `Reveal.base` is the bottom centre of the true body AND
+  of the guess wireframe, `Reveal.yawDeg` the turn of both, `Reveal.lift` the base's height above the floor (the guess
+  left in the air keeps the pair in the air, on the stand; on the floor keeps both on the floor). The true size never
+  changes. Only when the true body would reach the viewer (D14) does the pair move away **together**, level, and the
+  card says "both moved back a little, together" (`Reveal.movedBack`). `trueBody` / `wireBody` are derived from the
+  same base; [Move to marker], a pair drag, [Wrap me] and room updates move `base` only (`Placement.pairAt`).
+  The 1 m stand for small truths is gone: a 0.037 m gold cube reveals exactly where the guess stands.
+- Settings page (taste D26, `Page.SETTINGS`, state S15): deck -> [Settings]; language and sound rows, [Room] / [About],
+  and [Quit the app] at the bottom. The first press opens a confirm row (S16: "Quit Feel the Number?" [Cancel] [Quit]);
+  [Quit] sends `FeelEffect.Exit` -> `AppExit.quit()`: every activity `finishAndRemoveTask()`, the trackers stopped,
+  the sound pool released, `exitProcess(0)` 0.6 s later. Debug: `goto S15` / `goto S16`, `ui exit` / `exit_cancel` /
+  `exit_confirm` (the last one really quits).
+- Upright panels (taste D9): `Placement.placeUpright(head, forward, distance, downDeg, leftDeg)` is the only pose
+  function for panels - the card at start (30 left / 20 down / 1.0 m), [Bring the card back] (15 down / 1.0 m); it takes
+  the head's level heading only (pitch / roll dropped) and returns a rotation about the vertical. Auto-facing room panels
+  (the size tag) now turn about the vertical only (`PanelRig.face`: pitch 0). Unit test: head down 30 / up 30 / rolled 20.
+- Debug `drag_pose --ei on 1 --ef dx --ef dy --ef dz` moves the guess's base by an offset through the real drag events
+  (dy > 0.10 m leaves it in the air), so QA can set up the air / floor / wall reveal shots without a hand.
+- Unit tests 45 (domain 26 + state machine 13): `truthAndGuessShareOneBaseInEveryPose` (air / floor / wall / turned:
+  bottoms < 1 cm apart, yaw < 1 degree, through reveal, pair drag, marker, room update), `aBigTruthMovesBackTogetherWithTheGuess`,
+  `quitNeedsAConfirm`, `debugDragOffsetIsARealDrag`, `pairPoseKeepsLiftAndTurnAndShiftsLevel`, `placeUprightDropsPitchAndRoll`.
+
 ## Structure
 
 ```
@@ -120,9 +147,11 @@ slides, the 8-level growth, inside check, card follow, tag, ghost ring) lives in
   floor pinch = the marker (floor catcher, a 30 x 30 m thin box), [Move to marker] moves the content there; controller ray over the floor = ghost ring (S04);
   stick left/right turns the guess (cubes; the ball only matters for its side handle) or the room on the room page.
   No head-forward ray anywhere: the head pose is only used to place things in front of you (D9) and for the card.
-- Reveal: 8 growth levels built off the main thread (64 x 32 ball / 6 x 16 x 16 cube, clamped to the room, with their
-  cut rings) swapped in over 1.6 s (ease-out). The truth stands with its near surface >= 0.8 m from the head; truths
-  under 0.30 m appear on the tray above the anchor. Any spot that would put a body in the view cone to the card is moved further out (10 cm steps), and a body still in the cone takes no taps. The guess wireframe slides onto the truth's axis. Inside the truth: inner surface 25 %.
+- Reveal (v0.1.6, taste D1): 8 growth levels built off the main thread (64 x 32 ball / 6 x 16 x 16 cube, drawn whole)
+  swapped in over 1.6 s (ease-out). The truth grows from the guess's own base (bottom centre, height and turn exactly as
+  the guess was left: in the air on the stand, or on the floor); the guess wireframe stands on the same base. Only when
+  the truth's near surface would come within 0.8 m of the head does the pair move away together, level, with a line on
+  the card. A body in the view cone to the card fades and takes no taps. Inside the truth: inner surface 25 %.
 - Card: 460 x 640 dp at scale 1 (0.37 x 0.51 m), 30 degrees left / 20 down / 1.0 m, fixed where it is put
   (v0.1.5: grip bar to drag, "Bring the card back" pill), turned about the vertical only. Glass panels rebuild their content 1.5 / 4 / 8 s after every
   page / state change (the idle emulator sometimes leaves a half-drawn black block otherwise; Chime Bells fix).
@@ -138,20 +167,20 @@ tools/harness/fn.sh shot <name> [wait_s]        # console screenshot, two in a r
 
 | command | extras | effect |
 |---|---|---|
-| `goto` | `--es s S01..S14 [--es q <id>] [--es set co2/kilo/body/big]` | straight to a state with the design's QA setup: S01 (frozen), S02 (virtual room), S04 (aiming flag), S05 (guess 3.0 m), S06 (kg-water 1 m snapped to the wall ahead), S07 (frozen at 50 %), S08 co2-1kg 0.65, S09 co2-flight 4.0, S10 co2-1t 1.0 + wrap, S11 deck, S12 about, S14 room; `--es q` picks another question (kg-gold 0.3, kg-hydrogen 1.0, big-co2-capita 2.0 have their QA guesses) |
+| `goto` | `--es s S01..S16 [--es q <id>] [--es set co2/kilo/body/big]` | straight to a state with the design's QA setup: S01 (frozen), S02 (virtual room), S04 (aiming flag), S05 (guess 3.0 m), S06 (kg-water 1 m at the wall ahead), S07 (frozen at 50 %), S08 co2-1kg 0.65, S09 co2-flight 4.0, S10 co2-1t 1.0 + wrap, S11 deck, S12 about, S14 room, S15 settings, S16 settings + quit confirm; `--es q` picks another question (kg-gold 0.3, kg-hydrogen 1.0, big-co2-capita 2.0 have their QA guesses) |
 | `q` | `--es id <id>` | fresh guess for that question |
 | `guess` | `--ef size 0.65` | guess size (m), tray / floor by the 0.30 m threshold |
 | `spot` | `--ef x 0.5 --ef z -2` | marker at head + (x, z), then [Move to marker] |
 | `reveal` | `[--ef t 0.5]` | reveal; t freezes the growth; t = 1 jumps to the result |
 | `yaw` | `--ef deg 30` | guess turn |
-| `drag_pose` | `--ei on 1 [--es wall 1]` | a real drag (DragStarted / DragTo), `wall` = to 0.1 m from the wall ahead (no snap) |
+| `drag_pose` | `--ei on 1 [--es wall 1 \| --ef dx 0 --ef dy 0.6 --ef dz 0]`, `--ei on 0` | a real drag (DragStarted / DragTo / DragEnded): `wall` = to 0.1 m from the wall ahead (no snap), else the base moved by (dx, dy, dz) m (dy > 0.10 leaves it in the air); `on 0` lets go |
 | `best` | `--es v seed / clear` | best results |
 | `lang` | `--es id zh / en` | language |
 | `mute` / `wrap` / `freeze` / `noscan` | `--ei on 1 / 0` | mute; wrap me; freeze plane-driven state changes; ignore detected planes |
 | `room` | `--ef l 5 --ef w 4 --ef h 2.6 [--ei virtual 1]` | room size; virtual = drop the scan, virtual room |
 | `ray` | `--es v "ox,oy,oz,dx,dy,dz"` / `--es v off` | stand-in controller ray (ghost ring) |
-| `ui` | `--es id <control>` | presses a card control: reveal, again, next, to_marker, hide, wrap, to_marker, hint_room, deck, deck_close, set_*, pick_<id>, deck_room, deck_about, about_back, room_back, room_l/w/h_minus/plus, room_align, room_scan, lang_zh, lang_en, mute |
-| `state` | | `STATE {json}` (also files/state.json): state id, question, guess / true size and volume, r, stars, verdict, visible share, cut, inside, room box |
+| `ui` | `--es id <control>` | presses a card control: reveal, again, next, to_marker, hide, wrap, hint_room, deck, deck_close, set_*, pick_<id>, deck_room, deck_about, deck_settings, about_back, room_back, room_l/w/h_minus/plus, room_align, room_scan, lang_zh, lang_en, mute, settings_back, settings_room, settings_about, sound_on, sound_off, exit, exit_cancel, exit_confirm (really quits) |
+| `state` | | `STATE {json}` (also files/state.json): state id, question, guess / true size and volume, r, stars, verdict, visible share, cut, inside, room box; `result.base` / `result.yaw` / `result.lift` = the shared base of truth and wireframe (D1) |
 | `pose`, `panels`, `planes`, `park` | | scene queries; park = card back in front |
 
 Log tag `FeelNumber`: `STATE Sxx[+S13] q=<id>`, `QUESTION`, `GUESS`, `SPOT`, `DRAG start|end`, `TAP floor`,
@@ -180,7 +209,7 @@ tools/harness/deploy.sh          # install -r on emulator-5568, cold start, firs
 ```
 
 Material gate: `grep -rEf ../spatial-app-factory/bin/material-grep.txt --include=*.kt --include=*.kts app/src` must be empty.
-Unit tests: `app/src/test/.../FeelDomainTest.kt` (14: bank sizes, stars / verdict boundaries, QA expectations,
+Unit tests: `app/src/test/.../FeelDomainTest.kt` and `FeelPlacementStateTest.kt` (45 in v0.1.6; the domain set: bank sizes, stars / verdict boundaries, QA expectations,
 clearance and reveal pushes, wall stop, wrap, virtual room, visible share vs analytic, inside hysteresis, clamped
 mesh and rings, slider / handle / stick scaling, wall snap).
 

@@ -250,7 +250,7 @@ class FeelDomainTest {
     fun anchorPushNeverLeavesTheRoom() {
         // a 3 m ball put down right in the card's line of sight, 1 m out: the push stops inside the room
         val spot = Vec3(-0.6f, 0f, 0f)
-        val out = Placement.clearOfPanel(spot, eye, card, 0.315f, Shape.SPHERE, 3f, onTray = false, room = room4)
+        val out = Placement.clearOfPanel(spot, eye, card, 0.315f, Shape.SPHERE, 3f, lift = 0f, room = room4)
         val body = Body(Shape.SPHERE, Placement.center(out, 3f), 3f)
         assertTrue("centre stays in the room", room4.containsFlat(body.center))
         // the old unbounded push went up to 8 m: past the wall, then flattened by the room clip
@@ -261,7 +261,7 @@ class FeelDomainTest {
     @Test
     fun anchorPushClearsTheConeWhenThereIsRoom() {
         val spot = Vec3(-0.5f, 0f, 0.2f) // a 0.25 m ball on the tray, right under the card
-        val out = Placement.clearOfPanel(spot, eye, card, 0.315f, Shape.SPHERE, 0.25f, onTray = true, room = room4)
+        val out = Placement.clearOfPanel(spot, eye, card, 0.315f, Shape.SPHERE, 0.25f, lift = Placement.TRAY_HEIGHT_M, room = room4)
         assertTrue(out.distanceTo(spot) > 0.05f)
         assertFalse(Placement.blocksPanel(eye, card, 0.315f, Placement.center(Placement.trayAt(out), 0.25f), 0.125f))
         assertTrue(room4.containsFlat(out))
@@ -270,8 +270,8 @@ class FeelDomainTest {
     @Test
     fun anchorPushLeavesClearSpotsAlone() {
         val spot = Vec3(1f, 0f, -1f) // right of straight ahead, nowhere near the card
-        assertEquals(spot, Placement.clearOfPanel(spot, eye, card, 0.315f, Shape.SPHERE, 1f, onTray = false, room = room4))
-        assertEquals(spot, Placement.clearOfPanel(spot, eye, null, 0.315f, Shape.SPHERE, 1f, onTray = false, room = room4))
+        assertEquals(spot, Placement.clearOfPanel(spot, eye, card, 0.315f, Shape.SPHERE, 1f, lift = 0f, room = room4))
+        assertEquals(spot, Placement.clearOfPanel(spot, eye, null, 0.315f, Shape.SPHERE, 1f, lift = 0f, room = room4))
     }
 
     @Test
@@ -341,5 +341,66 @@ class FeelDomainTest {
         // a body grows from its base: the base, and so the bottom, does not move with the size
         val base = Vec3(0.5f, 1.4f, -2f)
         for (size in listOf(0.25f, 1f, 3f)) assertEquals(base.y, Placement.center(base, size).y - size / 2f, 1e-6f)
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // v0.1.6: D1 "one base for the pair", D9 "placeUpright"
+    // ---------------------------------------------------------------------------------------------
+
+    /** D1: the pair's pose keeps the guess's base height and turn; a shift for the viewer's clearance moves it level. */
+    @Test
+    fun pairPoseKeepsLiftAndTurnAndShiftsLevel() {
+        val floor = 0.4f
+        // in the air, far enough: no shift
+        val air = Placement.pairPose(Vec3(1f, floor + 0.6f, -3f), 37f, floor, Shape.SPHERE, 1.01f, Vec3(0f, 2f, 0f), null)
+        assertEquals(Vec3(1f, floor + 0.6f, -3f), air.base)
+        assertEquals(0.6f, air.lift, 1e-6f)
+        assertTrue(air.lifted)
+        assertEquals(37f, air.yawDeg, 0f)
+        assertFalse(air.shifted)
+        // on the floor, a 10 m truth 1.8 m out: pushed to R + 0.8 m, still on the floor, same turn
+        val big = Placement.pairPose(Vec3(0f, floor, -1.8f), -20f, floor, Shape.SPHERE, 10f, Vec3(0f, 2f, 0f), null)
+        assertTrue(big.shifted)
+        assertFalse(big.lifted)
+        assertEquals(floor, big.base.y, 1e-6f)
+        assertEquals(5.8f, -big.base.z, 1e-3f)
+        assertEquals(-20f, big.yawDeg, 0f)
+        // the same pair put at a marker keeps its lift and turn
+        val moved = Placement.pairAt(air, Vec3(-2f, floor, -1f), floor)
+        assertEquals(Vec3(-2f, floor + 0.6f, -1f), moved.base)
+        assertEquals(37f, moved.yawDeg, 0f)
+    }
+
+    /** D9: looking down 30, up 30 or with the head rolled 20 degrees, a panel is still vertical, in front, below the eye line. */
+    @Test
+    fun placeUprightDropsPitchAndRoll() {
+        val head = Vec3(0.3f, 1.55f, -0.2f)
+        val yaw = Math.toRadians(25.0) // heading 25 degrees left of -z
+        val level = Vec3(-kotlin.math.sin(yaw).toFloat(), 0f, -kotlin.math.cos(yaw).toFloat())
+        val right = Vec3.UP.cross(level).normalized().let { -it }
+        fun pitched(deg: Double): Vec3 = (level * kotlin.math.cos(Math.toRadians(deg)).toFloat() + Vec3.UP * kotlin.math.sin(Math.toRadians(deg)).toFloat())
+        // the forward vector of a rolled head is the level heading itself (roll turns about it); the pose must not use the roll
+        val cases = listOf("down 30" to pitched(-30.0), "up 30" to pitched(30.0), "roll 20" to level, "level" to level)
+        for ((name, forward) in cases) {
+            for ((dist, down) in listOf(1.0f to 20f, 1.0f to 15f, 0.9f to 12f)) {
+                val pose = Placement.placeUpright(head, forward, dist, down)
+                val up = pose.rotation.rotate(Vec3.UP)
+                assertEquals("$name: panel up is world up", 0.0, Math.toDegrees(kotlin.math.acos(up.dot(Vec3.UP).coerceIn(-1f, 1f).toDouble())), 1.0)
+                val to = pose.position - head
+                assertEquals("$name: distance", dist, to.length, 1e-3f)
+                val below = Math.toDegrees(kotlin.math.asin((-to.y / to.length).toDouble()))
+                assertTrue("$name: $below degrees below the eye line", below in 9.99..20.01)
+                // straight ahead of the level heading (no left turn asked), whatever the pitch
+                assertEquals("$name: ahead", 0f, RoomBox.level(to).dot(right), 1e-3f)
+                assertTrue("$name: in front", RoomBox.level(to).dot(level) > 0.99f)
+                // the panel's +Z (its face) points back at the head about the vertical
+                val face = pose.rotation.rotate(Vec3(0f, 0f, 1f))
+                assertTrue("$name: faces the head", face.dot(RoomBox.level(-to)) > 0.999f)
+            }
+        }
+        // the card's own pose: 30 degrees left of the heading
+        val card = Placement.placeUpright(head, pitched(-30.0), 1.0f, 20f, leftDeg = 30f)
+        assertTrue("card to the left", RoomBox.level(card.position - head).dot(right) < -0.4f)
+        assertEquals(0.0, Math.toDegrees(kotlin.math.acos(card.rotation.rotate(Vec3.UP).dot(Vec3.UP).coerceIn(-1f, 1f).toDouble())), 1.0)
     }
 }

@@ -81,5 +81,16 @@
     <string name="room_shorter">减小</string>
     <string name="room_longer">增大</string>
     <string name="action_recall_card">叫回问题卡</string>
-    <string name="moved_back">它太大，在你的猜测下面长会碰到你，所以往后放了一点。</string>
+    <string name="moved_back">它太大，在你放猜测的地方长出来会碰到你，所以两个一起往后挪了一点。</string>
+    <string name="action_settings">设置</string>
+    <string name="settings_title">设置</string>
+    <string name="setting_language">语言</string>
+    <string name="setting_sound">声音</string>
+    <string name="setting_sound_on">开</string>
+    <string name="setting_sound_off">关</string>
+    <string name="action_exit">退出应用</string>
+    <string name="exit_confirm_title">确定退出量感？</string>
+    <string name="exit_confirm_body">最好成绩会保留。应用关闭并释放追踪。</string>
+    <string name="action_exit_confirm">退出</string>
+    <string name="action_cancel">取消</string>
 </resources>

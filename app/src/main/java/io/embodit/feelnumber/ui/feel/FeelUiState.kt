@@ -14,8 +14,8 @@ enum class Lang { ZH, EN }
 /** Main phase (design `stateModel.rule`). */
 enum class Phase { FINDING, GUESS, REVEALING, RESULT }
 
-/** What the question card shows. */
-enum class Page { MAIN, DECK, ABOUT, ROOM }
+/** What the question card shows. SETTINGS (v0.1.6, taste D26): language, sound, and [Quit] at the bottom with a confirm. */
+enum class Page { MAIN, DECK, ABOUT, ROOM, SETTINGS }
 
 /** One-off notes on the hint line (they win over the state hint for a few seconds). */
 enum class Note { SCANNED_ROOM, NO_CEILING }
@@ -41,14 +41,18 @@ data class Guess(
     val touched: Boolean = false,
 )
 
-/** The revealed truth and the result (S07 - S10). */
+/**
+ * The revealed truth and the result (S07 - S10). v0.1.6 (taste D1 "揭晓 / 对比同一基准"): the true body and the guess
+ * wireframe are one pair generated from the same anchor - [base] is the bottom centre of both, [yawDeg] the turn of
+ * both; only colour and line style differ. [lift] is the base's height above the floor (0 = the pair stands on the
+ * floor; the guess left in the air keeps the pair in the air).
+ */
 data class Reveal(
     val trueSize: Float,
-    /** Floor spot (or the tray point) of the true body. */
-    val spot: Vec3,
-    val onTray: Boolean,
-    /** Where the guess wireframe stands (same axis as the truth, except a big guess over a tray truth). */
-    val guessBase: Vec3,
+    /** Bottom centre of the true body AND of the guess wireframe. */
+    val base: Vec3,
+    /** Height of [base] above the floor; 0 = on the floor. */
+    val lift: Float,
     val guessSize: Float,
     val yawDeg: Float,
     /** `elapsedRealtime` of the reveal start; [frozenT] holds the growth at that progress (debug `reveal t`). */
@@ -63,10 +67,17 @@ data class Reveal(
     val beforeWrap: Vec3? = null,
     /** The anchor the pair was put at (the marker it was moved to, before the clearance push). */
     val anchor: Vec3? = null,
-    /** The truth was moved back from below the guess to keep clear of the viewer (D14): the card says so. */
+    /** The pair (both bodies together) was moved sideways to keep the true body clear of the viewer (D14): the card says so. */
     val movedBack: Boolean = false,
     val hidden: Boolean = false,
-)
+) {
+    /** The pair stands in the air (on the stand above its spot), not on the floor. */
+    val lifted: Boolean
+        get() = lift > 0f
+
+    /** The floor spot under the pair. */
+    fun spotOnFloor(floorY: Float): Vec3 = Vec3(base.x, floorY, base.z)
+}
 
 data class FeelUiState(
     val lang: Lang = Lang.ZH,
@@ -92,6 +103,10 @@ data class FeelUiState(
     val sceneReady: Boolean = false,
     val head: Vec3 = Vec3.ZERO,
     val facing: Vec3 = Vec3.AHEAD,
+    /** Settings page: [Quit] was pressed once, the confirm row is open (taste D26). */
+    val exitAsked: Boolean = false,
+    /** [Quit] confirmed: the screen finishes the task and ends the process. */
+    val exiting: Boolean = false,
 ) {
     val en: Boolean
         get() = lang == Lang.EN
@@ -110,13 +125,15 @@ data class FeelUiState(
             return Body(question.shape, Placement.center(base, g.size), g.size, g.yawDeg)
         }
 
+    /** The true body: same base and turn as [wireBody] (D1). */
     val trueBody: Body?
-        get() = reveal?.let { Body(question.shape, Placement.center(it.spot, it.trueSize), it.trueSize, it.yawDeg) }
+        get() = reveal?.let { Body(question.shape, Placement.center(it.base, it.trueSize), it.trueSize, it.yawDeg) }
 
+    /** The guess wireframe: same base and turn as [trueBody] (D1). */
     val wireBody: Body?
-        get() = reveal?.let { Body(question.shape, Placement.center(it.guessBase, it.guessSize), it.guessSize, it.yawDeg) }
+        get() = reveal?.let { Body(question.shape, Placement.center(it.base, it.guessSize), it.guessSize, it.yawDeg) }
 
-    /** The design's state id (S01 - S14), "+S13" in English. */
+    /** The design's state id (S01 - S14; S15 settings, S16 quit confirm), "+S13" in English. */
     val stateId: String
         get() {
             val base =
@@ -124,6 +141,7 @@ data class FeelUiState(
                     page == Page.DECK -> "S11"
                     page == Page.ABOUT -> "S12"
                     page == Page.ROOM -> "S14"
+                    page == Page.SETTINGS -> if (exitAsked) "S16" else "S15"
                     phase == Phase.FINDING -> "S01"
                     phase == Phase.REVEALING -> "S07"
                     phase == Phase.RESULT -> {
@@ -227,6 +245,15 @@ sealed interface FeelEvent {
 
     data object OpenRoom : FeelEvent
 
+    data object OpenSettings : FeelEvent
+
+    /** Settings: [Quit] pressed once (the confirm row opens), cancelled, confirmed (taste D26). */
+    data object AskExit : FeelEvent
+
+    data object CancelExit : FeelEvent
+
+    data object ConfirmExit : FeelEvent
+
     data object BackToDeck : FeelEvent
 
     data class SetLang(val lang: Lang) : FeelEvent
@@ -257,7 +284,8 @@ sealed interface FeelEvent {
 
     data class DebugYaw(val deg: Float) : FeelEvent
 
-    data class DebugDragPose(val on: Boolean, val wall: Boolean) : FeelEvent
+    /** Debug `drag_pose`: the drag events of a real drag; [wall] = to the wall ahead, else by [offset] from the base. */
+    data class DebugDragPose(val on: Boolean, val wall: Boolean, val offset: Vec3 = Vec3.ZERO) : FeelEvent
 
     data class DebugBest(val seed: Boolean) : FeelEvent
 
@@ -277,4 +305,7 @@ sealed interface FeelEffect {
     data object Chime : FeelEffect
 
     data object Tick : FeelEffect
+
+    /** Quit confirmed: finish the task and end the process (the screen does it; the ViewModel only decides). */
+    data object Exit : FeelEffect
 }

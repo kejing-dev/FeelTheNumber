@@ -14,14 +14,17 @@ import java.io.File
  *
  * `am broadcast -a io.embodit.feelnumber.DEBUG -p io.embodit.feelnumber --es cmd <command> [extras]`
  *
- * - `goto --es s S01..S14 [--es q <question id>] [--es set co2|kilo|body|big]`  straight to a designed state with the
- *                                  design's QA setup (S08 / S09 / S10 use the `qaCombos` guesses; S10 presses [Wrap me])
+ * - `goto --es s S01..S16 [--es q <question id>] [--es set co2|kilo|body|big]`  straight to a designed state with the
+ *                                  design's QA setup (S08 / S09 / S10 use the `qaCombos` guesses; S10 presses [Wrap me];
+ *                                  S15 = settings page, S16 = settings with the quit confirm open)
  * - `q --es id <question id>`      a fresh guess for that question
  * - `guess --ef size 0.65`         guess size in metres, put on the tray / the floor by the 0.30 m threshold
  * - `spot --ef x 0.5 --ef z -2`    the user's spot, metres from the head (Stage axes)
  * - `reveal [--ef t 0.5]`          reveal; with t the growth is frozen at that progress (t = 1: straight to the result)
  * - `yaw --ef deg 30`              the guess's turn
- * - `drag_pose --ei on 1 [--es wall 1]`  the drag (S06) and wall-snap visuals
+ * - `drag_pose --ei on 1 [--es wall 1 | --ef dx 0 --ef dy 0.6 --ef dz 0]`  a real drag (DragStarted / DragTo / DragEnded):
+ *                                  to the wall ahead, or the base moved by (dx, dy, dz) metres (dy > 0.10 leaves it in the air);
+ *                                  `--ei on 0` lets go
  * - `best --es v seed|clear`       best results seeded / cleared
  * - `lang --es id zh|en`, `mute --ei on 1|0`, `wrap --ei on 1|0`
  * - `room --ef l 5 --ef w 4 --ef h 2.6 [--ei virtual 1]`  room size; virtual = drop the scan and use a virtual room
@@ -31,7 +34,8 @@ import java.io.File
  * - `ui --es id <control>`         presses a question-card control by name (reveal, again, next, to_front, hide, wrap,
  *                                  back_in_front, hint_room, deck, deck_close, set_*, pick_<id>, deck_room, deck_about,
  *                                  about_back, room_back, room_l_minus / _plus, room_w_*, room_h_*, room_align, room_scan,
- *                                  lang_zh, lang_en, mute)
+ *                                  lang_zh, lang_en, mute, deck_settings, settings_back, settings_room, settings_about,
+ *                                  sound_on, sound_off, exit, exit_cancel, exit_confirm - the last one really quits)
  * - `state`                        `STATE {json}` (also files/state.json): state, question, guess / true volumes, r,
  *                                  stars, visible share, inside, room box
  * - `pose`, `panels`, `planes`, `park`
@@ -54,7 +58,7 @@ internal object DebugCommands {
             "spot" -> ev(FeelEvent.DebugSpot(f("x") ?: 0f, f("z") ?: -1.8f))
             "reveal" -> ev(FeelEvent.DebugReveal(f("t")))
             "yaw" -> ev(FeelEvent.DebugYaw(f("deg") ?: 0f))
-            "drag_pose" -> ev(FeelEvent.DebugDragPose(on(), s("wall") == "1"))
+            "drag_pose" -> ev(FeelEvent.DebugDragPose(on(), s("wall") == "1", Vec3(f("dx") ?: 0f, f("dy") ?: 0f, f("dz") ?: 0f)))
             "best" -> ev(FeelEvent.DebugBest(s("v") != "clear"))
             "lang" -> ev(FeelEvent.SetLang(if (s("id") == "en") Lang.EN else Lang.ZH))
             "mute" -> ev(FeelEvent.DebugMute(on()))

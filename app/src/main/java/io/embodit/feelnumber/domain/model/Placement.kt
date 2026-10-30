@@ -145,8 +145,8 @@ object Placement {
     }
 
     /**
-     * Where the revealed pair stands: at [spot], unless the true body's near surface would come within
-     * 0.8 m of the head, then pushed away along head -> spot (through walls if need be: the room cuts it).
+     * Where the revealed pair stands: at [spot] (its height is kept), unless the true body's near surface would come
+     * within 0.8 m of the head, then pushed away along head -> spot (through walls if need be: nothing is cut).
      */
     fun revealSpot(spot: Vec3, head: Vec3, shape: Shape, trueSize: Float, room: RoomBox? = null): Vec3 {
         val flat = Vec3(spot.x - head.x, 0f, spot.z - head.z)
@@ -156,13 +156,63 @@ object Placement {
     }
 
     /**
+     * The one pose of a revealed pair (taste D1 "揭晓 / 对比同一基准", v0.1.6): the true body and the guess wireframe
+     * are generated from the same anchor - [base] is the bottom centre of both, [yawDeg] the turn of both; they differ
+     * in colour and line style only. [lift] is the base's height above the floor: the guess left in the air keeps the
+     * pair in the air, a guess on the floor keeps the pair on the floor. [shifted]: the pair was moved sideways as one
+     * because the true body would otherwise reach the viewer (D14); the card says so.
+     */
+    data class PairPose(val base: Vec3, val yawDeg: Float, val lift: Float, val shifted: Boolean) {
+        val lifted: Boolean
+            get() = lift > 0f
+    }
+
+    /**
+     * The pair's pose from the guess as the user left it: [guessBase] is the guess's bottom centre (on the floor or in
+     * the air), [guessYawDeg] its turn. The true size never changes; when the true body would come within 0.8 m of the
+     * head, guess and truth move away together along head -> base (same height).
+     */
+    fun pairPose(guessBase: Vec3, guessYawDeg: Float, floorY: Float, shape: Shape, trueSize: Float, head: Vec3, room: RoomBox?): PairPose {
+        val lift = (guessBase.y - floorY).coerceAtLeast(0f)
+        val base = revealSpot(guessBase, head, shape, trueSize, room)
+        val shifted = Vec3(base.x - guessBase.x, 0f, base.z - guessBase.z).length > 0.05f
+        return PairPose(base, guessYawDeg, lift, shifted)
+    }
+
+    /** The same pair put down at another floor spot ([Move to marker], a drag): the lift and the turn are kept. */
+    fun pairAt(pose: PairPose, spot: Vec3, floorY: Float): PairPose = pose.copy(base = Vec3(spot.x, floorY + pose.lift, spot.z), shifted = false)
+
+    /**
+     * Where an upright panel goes (taste D9, v0.1.6): [distance] metres from the head along its **level** heading
+     * (the head's pitch and roll are dropped), [downDeg] below the eye line, turned [leftDeg] to the left of the
+     * heading; the panel is vertical and faces the head about the vertical axis only. Every path that poses a panel
+     * (the card at start, [Bring the card back], after a drag) goes through here.
+     */
+    data class UprightPose(val position: Vec3, val yawRad: Float) {
+        /** Rotation about the vertical only: the panel's up is the world's up. */
+        val rotation: Quat4
+            get() = Quat4.axisAngle(Vec3.UP, yawRad)
+    }
+
+    fun placeUpright(head: Vec3, forward: Vec3, distance: Float, downDeg: Float, leftDeg: Float = 0f): UprightPose {
+        val f = RoomBox.level(forward)
+        val heading = kotlin.math.atan2(-f.x.toDouble(), -f.z.toDouble()) + Math.toRadians(leftDeg.toDouble())
+        val down = Math.toRadians(downDeg.toDouble())
+        val dir = Vec3(-kotlin.math.sin(heading).toFloat(), 0f, -kotlin.math.cos(heading).toFloat())
+        val p = head + dir * (distance * kotlin.math.cos(down)).toFloat() - Vec3(0f, (distance * kotlin.math.sin(down)).toFloat(), 0f)
+        // the panel's +Z turned back towards the head, about the vertical
+        val yaw = kotlin.math.atan2((head.x - p.x).toDouble(), (head.z - p.z).toDouble()).toFloat()
+        return UprightPose(p, yaw)
+    }
+
+    /**
      * Taste D20, applied once when content is put at an anchor ([Move to marker], a new question): the spot moves further
-     * out along eye -> spot, 10 cm at a time, until the body (on the floor, or on the tray above the spot) leaves the view
+     * out along eye -> spot, 10 cm at a time, until the body (its base [lift] metres above the spot) leaves the view
      * cone to the panel. v0.1.2: the push never leaves the room - it stops where the body's level outline would reach the
      * wall (a body pushed past the wall was flattened onto it by the room clip: "松开后球变 2D 贴到边上"). Content that
      * cannot get out of the cone inside the room stays and is only faded by the scene.
      */
-    fun clearOfPanel(spot: Vec3, eye: Vec3, panel: Vec3?, panelHalfDiag: Float, shape: Shape, size: Float, onTray: Boolean, room: RoomBox?): Vec3 {
+    fun clearOfPanel(spot: Vec3, eye: Vec3, panel: Vec3?, panelHalfDiag: Float, shape: Shape, size: Float, lift: Float, room: RoomBox?): Vec3 {
         if (panel == null) return spot
         val flat = Vec3(spot.x - eye.x, 0f, spot.z - eye.z)
         if (flat.length < 0.05f) return spot
@@ -173,7 +223,7 @@ object Placement {
         var dist = flat.length
         fun blocks(d: Float): Boolean {
             val at = origin + dir * d
-            val base = if (onTray) trayAt(at) else at
+            val base = Vec3(at.x, at.y + lift, at.z)
             return blocksPanel(eye, panel, panelHalfDiag, center(base, size), r)
         }
         while (blocks(dist) && dist + 0.1f <= maxDist && dist < flat.length + 8f) dist += 0.1f
@@ -183,8 +233,8 @@ object Placement {
     /** Radius of the sphere around a body (ball: R; cube: half the space diagonal). */
     fun boundingRadius(shape: Shape, size: Float): Float = if (shape == Shape.SPHERE) size / 2f else size * 0.866f
 
-    /** [Wrap me]: the pair's axis right below the head. */
-    fun wrapSpot(head: Vec3, floorY: Float): Vec3 = Vec3(head.x, floorY, head.z)
+    /** [Wrap me]: the pair's axis right below the head ([baseY]: the pair's base height is kept, D1). */
+    fun wrapSpot(head: Vec3, baseY: Float): Vec3 = Vec3(head.x, baseY, head.z)
 
     /** Centre of a body of [size] standing on [base] (a floor spot or the tray point). */
     fun center(base: Vec3, size: Float): Vec3 = Vec3(base.x, base.y + size / 2f, base.z)

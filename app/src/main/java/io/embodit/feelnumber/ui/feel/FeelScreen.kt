@@ -16,6 +16,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pico.spatial.ui.foundation.dsl.registerSystem
 import com.pico.spatial.ui.foundation.dsl.unregisterSystem
+import io.embodit.feelnumber.platform.AppExit
 import io.embodit.feelnumber.platform.FeelLog
 import io.embodit.feelnumber.platform.audio.SoundPlayer
 import io.embodit.feelnumber.ui.feel.components.FeelStage
@@ -95,6 +96,11 @@ fun FeelScreen() {
                     FeelEffect.Pop -> sounds.pop()
                     FeelEffect.Chime -> sounds.chime()
                     FeelEffect.Tick -> sounds.tick()
+                    // D26: quit confirmed on the settings page - finish the task, stop the services, end the process
+                    FeelEffect.Exit -> {
+                        sounds.release()
+                        AppExit.quit()
+                    }
                 }
             }.onFailure { FeelLog.w("SOUND failed: $it") }
         }
